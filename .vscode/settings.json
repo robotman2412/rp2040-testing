@@ -1,0 +1,23 @@
+{
+  "cmake.configureOnOpen": false,
+  "cmake.statusbar.advanced": {
+    "debug" : {
+      "visibility": "hidden"
+              },    "launch" : {
+      "visibility": "hidden"
+               },
+    "build" : {
+      "visibility": "hidden"
+               },
+    "buildTarget" : {
+      "visibility": "hidden"
+               },
+    },
+    "files.associations": {
+      "*.tmLanguage": "json-tmlanguage",
+      "*.asm": "px16asm",
+      "stdlib.h": "c",
+      "string.h": "c"
+    },
+    "editor.insertSpaces": false,
+}
