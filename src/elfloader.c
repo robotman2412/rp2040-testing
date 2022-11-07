@@ -187,18 +187,22 @@ elf_ctx_t elf_interpret(FILE *fd) {
 	if (sh_name_idx >= ctx.num_sect_header) goto error;
 	elf_sh_t *name_sh = &ctx.sect_header[sh_name_idx];
 	
-	// Buffer it.
+	// Allocate memory to buffer names section.
 	char *name_tmp = malloc(name_sh->file_size + 1);
 	if (!name_tmp) goto error;
+	// Read the names section into said buffer.
 	name_tmp[name_sh->file_size] = 0;
 	SEEK(name_sh->offset);
 	READ(name_tmp, name_sh->file_size);
 	
 	// Collect section names.
 	for (size_t i = 0; i < ctx.num_sect_header; i++) {
+		// Determine maximum size.
 		size_t maximum = name_sh->file_size - ctx.sect_header[i].name_index;
+		// Copy the string from the buffer.
 		ctx.sect_header[i].name = strndup(&name_tmp[ctx.sect_header[i].name_index], maximum);
 	}
+	// Clean up the names buffer.
 	free(name_tmp);
 	name_tmp = NULL;
 	
