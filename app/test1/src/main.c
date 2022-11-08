@@ -15,11 +15,13 @@
 // R0-R3:	Arguments / return values
 // R4-R11:	Locals (callee saved)
 
+const unsigned int fancy = 0xdeadbeef;
+
 static int counter;
 
 int reset() {
 	counter = 0;
-	return 0;
+	return 0x00feca00;
 }
 
 __attribute__((target("thumb")))

@@ -21,10 +21,40 @@ int main() {
 	
 	elf_ctx_t ctx = elf_interpret(elf_fd);
 	if (ctx.valid) {
-		printf("Load success!\n");
+		printf("Interpret success!\n");
+		sleep_ms(2000);
+		elf_loaded_t loaded = elf_load(elf_fd, &ctx);
+		if (loaded.valid) {
+			printf("Loaded at %08zx\n", loaded.vaddr);
+			
+			elf_sym_t *fancy_sym = elf_find_sym(&ctx, "reset");
+			if (fancy_sym) {
+				size_t addr = fancy_sym->value + loaded.vaddr;
+				printf("Sym reset @ %08zx\n", addr);
+				for (size_t i = 0; i < 32; i += 8) {
+					for (size_t x = 0; x < 8; x++) {
+						printf(" %02x", ((uint8_t *) addr)[i+x]);
+					}
+					printf("\n");
+				}
+				
+				sleep_ms(2000);
+				while (1) sleep_ms(100);
+				// int (*fptr)();
+				// fptr = (void *) addr;
+				// int retval = fptr();
+				// printf("Returns %08x\n", retval);
+				
+			} else {
+				printf("Sym reset not found\n");
+			}
+		} else {
+			printf("Load error!\n");
+		}
 	} else {
-		printf("Load error!\n");
+		printf("Interpret error!\n");
 	}
+	fflush(stdout);
 	
 	while(1) sleep_ms(100);
 }
