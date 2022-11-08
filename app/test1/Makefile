@@ -9,7 +9,7 @@ INCLUDES	=-Isrc -Ibuild
 TARGET		=build/test1.elf
 TARGET_DEBUG=build/test1.debug.elf
 
-COMPILER		=arm-none-eabi-gcc
+COMPILER		=arm-none-eabi-gcc -mcpu=cortex-m0plus -mthumb
 CFLAGS			=-fPIC -fno-hosted -nostdlib -nodefaultlibs -c
 CFLAGS_DEBUG	=$(CFLAGS) -g -DDEBUG
 LDFLAGS			=-fPIC -fno-hosted -nostdlib -nodefaultlibs

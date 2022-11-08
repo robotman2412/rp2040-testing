@@ -20,7 +20,7 @@ const unsigned int fancy = 0xdeadbeef;
 static int counter;
 
 int reset() {
-	counter = 0;
+	// counter = 0;
 	return 0x00feca00;
 }
 
