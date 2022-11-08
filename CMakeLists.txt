@@ -40,6 +40,8 @@ target_link_libraries(rp2040test
 # Add the standard include files to the build
 target_include_directories(rp2040test PRIVATE
   ${CMAKE_CURRENT_LIST_DIR}
+  ${CMAKE_CURRENT_LIST_DIR}/src
+  ${CMAKE_CURRENT_LIST_DIR}/shared
   ${CMAKE_CURRENT_LIST_DIR}/.. # for our common lwipopts or any other standard includes, if required
 )
 

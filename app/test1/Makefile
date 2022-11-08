@@ -5,7 +5,7 @@ HEADERS		=$(shell find ./src -name '*.h')
 OBJECTS		=$(shell echo $(SOURCES)    | sed -e 's/src/build/g;s/\.c/.c.o/g')\
 			 $(shell echo $(ASSEMBLIES) | sed -e 's/src/build/g;s/\.s/.s.o/g;s/\.S/.S.o/g')
 OBJ_DEBUG	=$(shell echo $(OBJECTS)    | sed -e 's/\.o/.debug.o/g')
-INCLUDES	=-Isrc -Ibuild
+INCLUDES	=-Isrc -Ibuild -I../../shared
 TARGET		=build/test1.elf
 TARGET_DEBUG=build/test1.debug.elf
 
@@ -38,18 +38,18 @@ $(TARGET_DEBUG): $(OBJ_DEBUG)
 
 build/%.c.debug.o: src/%.c
 	@mkdir -p $(shell dirname $@)
-	@$(COMPILER) -S $(CFLAGS_DEBUG) -o $@.S $<
-	$(COMPILER) $(CFLAGS_DEBUG) -o $@ $<
+	@$(COMPILER) -S $(CFLAGS_DEBUG) $(INCLUDES) -o $@.S $<
+	$(COMPILER) $(CFLAGS_DEBUG) $(INCLUDES) -o $@ $<
 
 build/%.S.debug.o: src/%.S
 	@mkdir -p $(shell dirname $@)
-	$(COMPILER) $(CFLAGS_DEBUG) -o $@ $<
+	$(COMPILER) $(CFLAGS_DEBUG) $(INCLUDES) -o $@ $<
 
 build/%.c.o: src/%.c
 	@mkdir -p $(shell dirname $@)
-	@$(COMPILER) -S $(CFLAGS) -o $@.S $<
-	$(COMPILER) $(CFLAGS) -o $@ $<
+	@$(COMPILER) -S $(CFLAGS) $(INCLUDES) -o $@.S $<
+	$(COMPILER) $(CFLAGS) $(INCLUDES) -o $@ $<
 
 build/%.S.o: src/%.S
 	@mkdir -p $(shell dirname $@)
-	$(COMPILER) $(CFLAGS) -o $@ $<
+	$(COMPILER) $(CFLAGS) $(INCLUDES) -o $@ $<

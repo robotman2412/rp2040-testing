@@ -72,6 +72,24 @@ file: /home/julian/the_projects/rp2040test/src/rp2040test.c
 
 */
 
+#include <elfloader_client_data.h>
+
+void funny_abort() {
+	printf("Abort called!\n");
+	fflush(stdout);
+	while (1) sleep_ms(1000);
+}
+
+int fancy_callback() {
+	printf("Callback activated!\n");
+	return 12;
+}
+
+void *funny_resolver(elf_loaded_t *loaded, const char *name, bool allow_object, bool allow_function) {
+	printf("Resolver activated!\n");
+	return fancy_callback;
+}
+
 int main() {
 	stdio_init_all();
 	sleep_ms(2500);
@@ -85,23 +103,24 @@ int main() {
 		printf("Interpret success!\n");
 		sleep_ms(2000);
 		elf_loaded_t loaded = elf_load(elf_fd, &ctx);
+		
+		elf_client_data_t client_data = {
+			.resolver_ctx = &loaded,
+			.resolver     = funny_resolver,
+			.abort        = funny_abort,
+		};
+		
 		if (loaded.valid) {
 			printf("Loaded at %08zx\n", loaded.vaddr);
 			
-			const char *symname = "reset";
-			elf_sym_t *fancy_sym = elf_find_sym(&ctx, symname);
-			if (fancy_sym) {
-				size_t addr = fancy_sym->value + loaded.vaddr;
-				printf("Sym %s @ %08zx\n", symname, addr);
-				
+			elf_client_entry_t entry = elf_adrof_sym(&loaded, "_start", true, true);
+			if (entry) {
+				printf("Entry at %p\n", entry);
 				sleep_ms(2000);
-				int (*fptr)();
-				fptr = (void *) addr;
-				int retval = fptr();
-				printf("Returns %08x\n", retval);
-				
+				entry(client_data);
+				printf("Done!\n");
 			} else {
-				printf("Sym %s not found\n", symname);
+				printf("Entry not found!\n");
 			}
 		} else {
 			printf("Load error!\n");

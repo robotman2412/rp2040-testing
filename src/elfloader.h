@@ -101,6 +101,9 @@ typedef struct {
 	// Whether the file was successfully loaded.
 	bool valid;
 	
+	// The context from which this was loaded.
+	elf_ctx_t *ctx;
+	
 	// The address offset at which it is loaded.
 	// Addresses in elf_ctx_t are relative to this.
 	size_t vaddr;
@@ -121,6 +124,10 @@ elf_sh_t    *elf_find_sect(elf_ctx_t *ctx, const char *name);
 
 // Find a symbol from the table.
 elf_sym_t   *elf_find_sym (elf_ctx_t *ctx, const char *name);
+
+// Get the loaded address of a symbol.
+// Returns NULL when not found.
+void        *elf_adrof_sym(elf_loaded_t *loaded, const char *name, bool allow_object, bool allow_function);
 
 #ifdef __cplusplus
 }

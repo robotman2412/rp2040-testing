@@ -15,23 +15,29 @@
 // R0-R3:	Arguments / return values
 // R4-R11:	Locals (callee saved)
 
-const unsigned int fancy = 0xdeadbeef;
+#include <elfloader_client_data.h>
 
-static int counter;
+static elf_client_data_t _client_data;
 
-int reset() {
-	// counter = 0;
-	return 0x00feca00;
+static int _pre_resolve_callback();
+
+static int (*_pointer_callback)() = _pre_resolve_callback;
+
+static int _pre_resolve_callback() {
+	_pointer_callback = _client_data.resolver(_client_data.resolver_ctx, "callback", false, true);
+	if (!_pointer_callback) _client_data.abort();
+	return _pointer_callback();
 }
 
-__attribute__((target("thumb")))
-int main() {
-	counter ++;
-	return counter;
+int callback() {
+	return _pointer_callback();
 }
 
-__attribute__((noreturn))
-void _start() {
-	reset();
-	while (1);
+void _start(elf_client_data_t client_data) {
+	_client_data = client_data;
+	_pointer_callback = _pre_resolve_callback;
+	callback();
+	callback();
+	callback();
+	callback();
 }

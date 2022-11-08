@@ -72,8 +72,6 @@ static void *aligned_alloc(size_t size, size_t alignment) {
 	size_t min_offs  = real_mem + sizeof(size_t);
 	size_t mem       = min_offs + alignment - (min_offs % alignment);
 	
-	printf("%08zx %08zx %08zx %08zx\n", real_size, real_mem, min_offs, mem);
-	
 	// Add INFO thingy.
 	*(size_t *) (mem - sizeof(size_t)) = real_mem;
 	return (void *) mem;
@@ -337,6 +335,7 @@ elf_loaded_t elf_load(FILE *fd, elf_ctx_t *ctx) {
 	if (!ctx || !fd || !ctx->valid) return (elf_loaded_t) { false };
 	
 	elf_loaded_t loaded;
+	loaded.ctx = ctx;
 	
 	// TODO: Determine alignment.
 	size_t alignment = 256;
@@ -365,7 +364,6 @@ elf_loaded_t elf_load(FILE *fd, elf_ctx_t *ctx) {
 	loaded.memory = aligned_alloc(required, alignment);
 	if (!loaded.memory) return (elf_loaded_t) { false };
 	loaded.vaddr  = (size_t) loaded.memory - min_addr;
-	printf("%08zx %08zx\n", min_addr, max_addr);
 	
 	// Load segments into memory.
 	for (size_t i = 0; i < ctx->num_prog_header; i++) {
@@ -406,4 +404,15 @@ elf_sym_t *elf_find_sym(elf_ctx_t *ctx, const char *name) {
 		}
 	}
 	return NULL;
+}
+
+// Get the loaded address of a symbol.
+// Returns NULL when not found.
+void *elf_adrof_sym(elf_loaded_t *loaded, const char *name, bool allow_object, bool allow_function) {
+	elf_sym_t *sym = elf_find_sym(loaded->ctx, name);
+	if (sym && (sym->info & 0xf0) == 0x10 && (((sym->info & 0x0f) == 0x01 && allow_object) || ((sym->info & 0x0f) == 0x02 && allow_function))) {
+		return (void *) ((size_t) sym->value + loaded->vaddr);
+	} else {
+		return NULL;
+	}
 }
