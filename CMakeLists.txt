@@ -25,7 +25,7 @@ pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
-add_executable(rp2040test src/rp2040test.c src/elfloader.c build/elf_file.c)
+add_executable(rp2040test src/rp2040test.c src/elfloader.c src/elfloader_arm_relocations.c build/elf_file.c)
 
 pico_set_program_name(rp2040test "rp2040test")
 pico_set_program_version(rp2040test "0.1")

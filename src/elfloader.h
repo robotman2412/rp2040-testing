@@ -121,7 +121,17 @@ typedef struct {
 	elf_sym_t *parent;
 	// The resolved virtual address.
 	uint32_t   vaddr;
+	// The global offset table address for this symbol, if any.
+	uint32_t  got_addr;
 } elf_load_sym_t;
+
+// A loaded to memory instance of a section.
+typedef struct {
+	// The section this was loaded from.
+	elf_sh_t *parent;
+	// The resolved virtual address.
+	uint32_t  vaddr;
+} elf_load_sh_t;
 
 // A relocation entry.
 typedef struct {
