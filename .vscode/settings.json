@@ -20,4 +20,5 @@
       "string.h": "c"
     },
     "editor.insertSpaces": false,
+    "C_Cpp.errorSquiggles": "Disabled",
 }

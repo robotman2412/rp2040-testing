@@ -6,6 +6,136 @@
 
 
 
+// Does nothing.
+#define R_ARM_NONE		0
+// Deprecated:			((S + A) | T) - P
+#define R_ARM_PC24		1
+// Static, Data:		(S + A) | T
+#define R_ARM_ABS32		2
+// Static, Data:		((S + A) | T) | -P
+#define R_ARM_REL32 	3
+// Static, Arm:			S + A - P
+#define R_ARM_LDR_PC_G0	4
+// Static, Data:		S + A
+#define R_ARM_ABS16		5
+// Static, Arm:			S + A
+#define R_ARM_ABS12		6
+// Static, Thumb16:		S + A
+#define R_ARM_THM_ABS5	7
+// Static, Data:		S + A
+#define R_ARM_ABS8		8
+// Static, Data:		((S + A) | T) - B(S)
+#define R_ARM_SBREL32	9
+// Static, Thumb32:		((S + A) | T) - P
+#define R_ARM_THM_CALL	10
+// Static, Thumb16:		
+
+/*
+1 R_ARM_PC24 Deprecated Arm ((S + A) | T) – P
+2 R_ARM_ABS32 Static Data (S + A) | T
+3 R_ARM_REL32 Static Data ((S + A) | T) | – P
+4 R_ARM_LDR_PC_G0 Static Arm S + A – P
+5 R_ARM_ABS16 Static Data S + A
+6 R_ARM_ABS12 Static Arm S + A
+7 R_ARM_THM_ABS5 Static Thumb16 S + A
+8 R_ARM_ABS8 Static Data S + A
+9 R_ARM_SBREL32 Static Data ((S + A) | T) – B(S)
+10 R_ARM_THM_CALL Static Thumb32 ((S + A) | T) – P
+11 R_ARM_THM_PC8 Static Thumb16 S + A – Pa
+12 R_ARM_BREL_ADJ Dynamic Data ChangeIn[B(S)] + A
+17 R_ARM_TLS_DTPMOD32 Dynamic Data Module[S]
+18 R_ARM_TLS_DTPOFF32 Dynamic Data S + A – TLS
+19 R_ARM_TLS_TPOFF32 Dynamic Data S + A – tp
+21 R_ARM_GLOB_DAT Dynamic Data (S + A) | T
+22 R_ARM_JUMP_SLOT Dynamic Data (S + A) | T
+23 R_ARM_RELATIVE Dynamic Data B(S) + A [Note: see Dynamic relocations]
+24 R_ARM_GOTOFF32 Static Data ((S + A) | T) – GOT_ORG
+25 R_ARM_BASE_PREL Static Data B(S) + A – P
+26 R_ARM_GOT_BREL Static Data GOT(S) + A – GOT_ORG
+27 R_ARM_PLT32 Deprecated Arm ((S + A) | T) – P
+28 R_ARM_CALL Static Arm ((S + A) | T) – P
+29 R_ARM_JUMP24 Static Arm ((S + A) | T) – P
+30 R_ARM_THM_JUMP24 Static Thumb32 ((S + A) | T) – P
+31 R_ARM_BASE_ABS Static Data B(S) + A
+35 R_ARM_LDR_SBREL_11_0_NC Deprecated Arm S + A – B(S)
+36 R_ARM_ALU_SBREL_19_12_NC Deprecated Arm S + A – B(S)
+37 R_ARM_ALU_SBREL_27_20_CK Deprecated Arm S + A – B(S)
+38 R_ARM_TARGET1 Static Miscellaneous (S + A) | T or ((S + | A) | T) – P
+39 R_ARM_SBREL31 Deprecated Data ((S + A) | T) – B(S)
+42 R_ARM_PREL31 Static Data ((S + A) | T) – P
+43 R_ARM_MOVW_ABS_NC Static Arm (S + A) | T
+44 R_ARM_MOVT_ABS Static Arm S + A
+45 R_ARM_MOVW_PREL_NC Static Arm ((S + A) | T) – P
+46 R_ARM_MOVT_PREL Static Arm S + A – P
+47 R_ARM_THM_MOVW_ABS_NC Static Thumb32 (S + A) | T
+48 R_ARM_THM_MOVT_ABS Static Thumb32 S + A
+49 R_ARM_THM_MOVW_PREL_NC Static Thumb32 ((S + A) | T) – P
+50 R_ARM_THM_MOVT_PREL Static Thumb32 S + A – P
+51 R_ARM_THM_JUMP19 Static Thumb32 ((S + A) | T) – P
+52 R_ARM_THM_JUMP6 Static Thumb16 S + A – P
+53 R_ARM_THM_ALU_PREL_11_0 Static Thumb32 ((S + A) | T) – Pa
+54 R_ARM_THM_PC12 Static Thumb32 S + A – Pa
+55 R_ARM_ABS32_NOI Static Data S + A
+56 R_ARM_REL32_NOI Static Data S + A – P
+57 R_ARM_ALU_PC_G0_NC Static Arm ((S + A) | T) – P
+58 R_ARM_ALU_PC_G0 Static Arm ((S + A) | T) – P
+59 R_ARM_ALU_PC_G1_NC Static Arm ((S + A) | T) – P
+60 R_ARM_ALU_PC_G1 Static Arm ((S + A) | T) – P
+61 R_ARM_ALU_PC_G2 Static Arm ((S + A) | T) – P
+62 R_ARM_LDR_PC_G1 Static Arm S + A – P
+63 R_ARM_LDR_PC_G2 Static Arm S + A – P
+64 R_ARM_LDRS_PC_G0 Static Arm S + A – P
+65 R_ARM_LDRS_PC_G1 Static Arm S + A – P
+66 R_ARM_LDRS_PC_G2 Static Arm S + A – P
+67 R_ARM_LDC_PC_G0 Static Arm S + A – P
+68 R_ARM_LDC_PC_G1 Static Arm S + A – P
+69 R_ARM_LDC_PC_G2 Static Arm S + A – P
+70 R_ARM_ALU_SB_G0_NC Static Arm ((S + A) | T) – B(S)
+71 R_ARM_ALU_SB_G0 Static Arm ((S + A) | T) – B(S)
+72 R_ARM_ALU_SB_G1_NC Static Arm ((S + A) | T) – B(S)
+73 R_ARM_ALU_SB_G1 Static Arm ((S + A) | T) – B(S)
+74 R_ARM_ALU_SB_G2 Static Arm ((S + A) | T) – B(S)
+75 R_ARM_LDR_SB_G0 Static Arm S + A – B(S)
+76 R_ARM_LDR_SB_G1 Static Arm S + A – B(S)
+77 R_ARM_LDR_SB_G2 Static Arm S + A – B(S)
+78 R_ARM_LDRS_SB_G0 Static Arm S + A – B(S)
+79 R_ARM_LDRS_SB_G1 Static Arm S + A – B(S)
+80 R_ARM_LDRS_SB_G2 Static Arm S + A – B(S)
+81 R_ARM_LDC_SB_G0 Static Arm S + A – B(S)
+82 R_ARM_LDC_SB_G1 Static Arm S + A – B(S)
+83 R_ARM_LDC_SB_G2 Static Arm S + A – B(S)
+84 R_ARM_MOVW_BREL_NC Static Arm ((S + A) | T) – B(S)
+85 R_ARM_MOVT_BREL Static Arm S + A – B(S)
+86 R_ARM_MOVW_BREL Static Arm ((S + A) | T) – B(S)
+87 R_ARM_THM_MOVW_BREL_NC Static Thumb32 ((S + A) | T) – B(S)
+88 R_ARM_THM_MOVT_BREL Static Thumb32 S + A – B(S)
+89 R_ARM_THM_MOVW_BREL Static Thumb32 ((S + A) | T) – B(S)
+94 R_ARM_PLT32_ABS Static Data PLT(S) + A
+95 R_ARM_GOT_ABS Static Data GOT(S) + A
+96 R_ARM_GOT_PREL Static Data GOT(S) + A – P
+97 R_ARM_GOT_BREL12 Static Arm GOT(S) + A – GOT_ORG
+98 R_ARM_GOTOFF12 Static Arm S + A – GOT_ORG
+102 R_ARM_THM_JUMP11 Static Thumb16 S + A – P
+103 R_ARM_THM_JUMP8 Static Thumb16 S + A – P
+104 R_ARM_TLS_GD32 Static Data GOT(S) + A – P
+105 R_ARM_TLS_LDM32 Static Data GOT(S) + A – P
+106 R_ARM_TLS_LDO32 Static Data S + A – TLS
+107 R_ARM_TLS_IE32 Static Data GOT(S) + A – P
+108 R_ARM_TLS_LE32 Static Data S + A – tp
+109 R_ARM_TLS_LDO12 Static Arm S + A – TLS
+110 R_ARM_TLS_LE12 Static Arm S + A – tp
+111 R_ARM_TLS_IE12GP Static Arm GOT(S) + A – GOT_ORG
+131 R_ARM_THM_GOT_BREL12 Static Thumb32 GOT(S) + A – GOT_ORG
+132 R_ARM_THM_ALU_ABS_G0_NC Static Thumb16 (S + A) | T
+133 R_ARM_THM_ALU_ABS_G1_NC Static Thumb16 S + A
+134 R_ARM_THM_ALU_ABS_G2_NC Static Thumb16 S + A
+135 R_ARM_THM_ALU_ABS_G3 Static Thumb16 S + A
+136 R_ARM_THM_BF16 Static Arm ((S + A) | T) – P
+137 R_ARM_THM_BF12 Static Arm ((S + A) | T) – P
+138 R_ARM_THM_BF18 Static Arm ((S + A) | T) – P
+*/
+
+
 // A magic tester for multi boits
 static bool _elf_expect(FILE *fd, size_t len, const void *magic) {
 	uint8_t tmp[len];
@@ -107,6 +237,7 @@ elf_ctx_t elf_interpret(FILE *fd) {
 	int is_little_endian = true;
 	READUINT(is_little_endian, 1);
 	is_little_endian = is_little_endian == 1;
+	ctx.is_le = is_little_endian;
 	uint8_t version;
 	READUINT(version, 1);
 	printf("ELF V%d %s endian\n", version, is_little_endian ? "little" : "big");
@@ -126,6 +257,8 @@ elf_ctx_t elf_interpret(FILE *fd) {
 	READUINT(machine, 2);
 	printf("ELF type %04x\n", type);
 	printf("ISA type %02x\n", machine);
+	ctx.type    = type;
+	ctx.machine = machine;
 	
 	// There is another verion???
 	SKIP(4);
@@ -336,6 +469,22 @@ elf_loaded_t elf_load(FILE *fd, elf_ctx_t *ctx) {
 	
 	elf_loaded_t loaded;
 	loaded.ctx = ctx;
+	loaded.memory = NULL;
+	
+	bool is_little_endian = ctx->is_le;
+	
+	// Assert file is relocatable.
+	if (ctx->type != ET_REL) {
+		printf("Error: Cannot load ELF type %02x (supported: 0x02; executable)\n", ctx->type);
+		goto error;
+	}
+	printf("Warning: ELF files loaded by the simple method are very restricted and might cause crashes.\n");
+	
+	// Assert machine type.
+	if (ctx->machine != 0x28) {
+		printf("Error: Cannot load ELF for machine type %02x (supported: 0x28; ARM)\n", ctx->machine);
+		goto error;
+	}
 	
 	// TODO: Determine alignment.
 	size_t alignment = 256;
@@ -378,12 +527,58 @@ elf_loaded_t elf_load(FILE *fd, elf_ctx_t *ctx) {
 		}
 	}
 	
+	// Look for a global offset table.
+	elf_sh_t *got = elf_find_sect(ctx, ".got");
+	if (got) {
+		// Verify the section's validity.
+		if (got->entry_size != 4 || got->file_size & 3) goto error;
+		
+		// Apply offsets to global offset table.
+		uint32_t *gotptr = (uint32_t *) (got->vaddr + loaded.vaddr);
+		SEEK(got->offset);
+		for (size_t i = 0; i < got->file_size / 4; i ++) {
+			READUINT(gotptr[i], 4);
+			gotptr[i] += loaded.vaddr;
+		}
+	}
+	
 	loaded.valid = true;
 	return loaded;
 	
 	error:
-	aligned_free(loaded.memory);
+	if (loaded.memory) aligned_free(loaded.memory);
 	return (elf_loaded_t) { false };
+}
+
+// Advanced loading method.
+elf_link_t elf_linked_load(size_t num_to_load, elf_ctx_t **to_load, FILE **to_load_fds, size_t num_loaded, elf_loaded_t **loaded) {
+	elf_link_t linked;
+	linked.num_loaded = 0;
+	linked.loaded = NULL;
+	
+	// Interpret ELF files that weren't already.
+	for (size_t i = 0; i < num_to_load; i++) {
+		if (!to_load[i]->valid) {
+			*to_load[i] = elf_interpret(to_load_fds[i]);
+		}
+	}
+	
+	// Ensure validity of all inputs.
+	for (size_t i = 0; i < num_to_load; i++) {
+		if (!to_load[i]->valid) goto error;
+	}
+	for (size_t i = 0; i < num_loaded; i++) {
+		if (!loaded[i]->valid) goto error;
+	}
+	
+	// TODO: Enforce no duplicate symbols.
+	
+	// Clean up on error.
+	error:
+	if (linked.loaded) {
+		free(linked.loaded);
+	}
+	return (elf_link_t) { false };
 }
 
 // Get the section header with the specified name.

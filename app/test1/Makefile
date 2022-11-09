@@ -12,7 +12,7 @@ TARGET_DEBUG=build/test1.debug.elf
 COMPILER		=arm-none-eabi-gcc -mcpu=cortex-m0plus -mthumb
 CFLAGS			=-fPIC -fno-hosted -nostdlib -nodefaultlibs -c
 CFLAGS_DEBUG	=$(CFLAGS) -g -DDEBUG
-LDFLAGS			=-fPIC -fno-hosted -nostdlib -nodefaultlibs
+LDFLAGS			=-fPIC -fno-hosted -nostdlib -nodefaultlibs -r
 LDFLAGS_DEBUG	=$(CFLAGS) -g -DDEBUG
 
 .PHONY: all debug clean
@@ -38,8 +38,8 @@ $(TARGET_DEBUG): $(OBJ_DEBUG)
 
 build/%.c.debug.o: src/%.c
 	@mkdir -p $(shell dirname $@)
-	@$(COMPILER) -S $(CFLAGS_DEBUG) $(INCLUDES) -o $@.S $<
 	$(COMPILER) $(CFLAGS_DEBUG) $(INCLUDES) -o $@ $<
+	@$(COMPILER) -S $(CFLAGS_DEBUG) $(INCLUDES) -o $@.S $<
 
 build/%.S.debug.o: src/%.S
 	@mkdir -p $(shell dirname $@)
@@ -47,8 +47,8 @@ build/%.S.debug.o: src/%.S
 
 build/%.c.o: src/%.c
 	@mkdir -p $(shell dirname $@)
-	@$(COMPILER) -S $(CFLAGS) $(INCLUDES) -o $@.S $<
 	$(COMPILER) $(CFLAGS) $(INCLUDES) -o $@ $<
+	@$(COMPILER) -S $(CFLAGS) $(INCLUDES) -o $@.S $<
 
 build/%.S.o: src/%.S
 	@mkdir -p $(shell dirname $@)

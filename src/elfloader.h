@@ -10,24 +10,17 @@ extern "C" {
 #include <stddef.h>
 #include <stdbool.h>
 
-// A symbol defined or referenced by an ELF file.
-typedef struct {
-	// Index in the NAME TABLE.
-	uint32_t name_index;
-	// Copy of the name.
-	char    *name;
-	// The value of this symbol.
-	uint32_t value;
-	// The size associated with the symbol.
-	uint32_t size;
-	// Specifies the symbol's type.
-	uint8_t  info;
-	// The index of the section that this symbol is in.
-	uint16_t sect_idx;
-} elf_sym_t;
+#define ET_NONE 0x00
+#define ET_REL  0x01
+#define ET_EXEC 0x02
+#define ET_DYN  0x03
+
+typedef struct elf_ctx elf_ctx_t;
 
 // A program header, which is used to load the progam for running.
 typedef struct {
+	// The parent ELF context.
+	elf_ctx_t *parent;
 	// Index in the NAME TABLE.
 	uint32_t name_index;
 	// Copy of the name.
@@ -54,6 +47,8 @@ typedef struct {
 
 // A section header, which contains linking information.
 typedef struct {
+	// The parent ELF context.
+	elf_ctx_t *parent;
 	// Type of the segment.
 	uint32_t type;
 	// Offset in the file image.
@@ -72,14 +67,38 @@ typedef struct {
 	uint32_t alignment;
 } elf_ph_t;
 
-// A complete collection of information about an ELF file.
+// A symbol defined or referenced by an ELF file.
 typedef struct {
+	// The parent ELF context.
+	elf_ctx_t *parent;
+	// Index in the NAME TABLE.
+	uint32_t name_index;
+	// Copy of the name.
+	char    *name;
+	// The value of this symbol.
+	uint32_t value;
+	// The size associated with the symbol.
+	uint32_t size;
+	// Specifies the symbol's type.
+	uint8_t  info;
+	// The index of the section that this symbol is in.
+	uint16_t sect_idx;
+} elf_sym_t;
+
+// A complete collection of information about an ELF file.
+struct elf_ctx {
 	// Whether the file was successfully interpreted.
 	bool valid;
 	
+	// Whether the file is encoded in little endian.
+	bool is_le;
+	// The type of ELF file we're dealing with.
+	uint32_t type;
+	// The machine type the ELF file is compiled for.
+	uint32_t machine;
+	
 	// The entrypoint address.
 	uint32_t   entrypoint;
-	
 	// Number of program header segments.
 	size_t     num_prog_header;
 	// Program header segments.
@@ -94,7 +113,29 @@ typedef struct {
 	size_t     num_symbols;
 	// Symbols.
 	elf_sym_t *symbols;
-} elf_ctx_t;
+};
+
+// A loaded to memory instance of a symbol.
+typedef struct {
+	// The symbol context this was loaded from.
+	elf_sym_t *parent;
+	// The resolved virtual address.
+	uint32_t   vaddr;
+} elf_load_sym_t;
+
+// A relocation entry.
+typedef struct {
+	// The section to which to apply this.
+	elf_load_sh_t *target;
+	// The offset in the target section at which to start.
+	uint32_t       offset;
+	// The symbol index used for reference.
+	uint32_t       symbol;
+	// The type of relocation performed.
+	uint8_t        type;
+	// A constant which helps with the magic.
+	uint32_t       addend;
+} elf_reloc_t;
 
 // A loaded instance of an ELF file.
 typedef struct {
@@ -113,11 +154,26 @@ typedef struct {
 	void  *memory;
 } elf_loaded_t;
 
+// A linkage of multiple ELF files.
+typedef struct {
+	// Whether the linkage was successfully loaded.
+	bool          valid;
+	
+	// The amount of loaded ELF files.
+	size_t        num_loaded;
+	// Produced loaded ELF files.
+	elf_loaded_t *loaded;
+} elf_link_t;
+
 // Interpret an ELF file before loading.
 elf_ctx_t    elf_interpret(FILE *fd);
 
-// Load an ELF file for execution.
+// Simple method of ELF file loading, but much more restrictive.
 elf_loaded_t elf_load     (FILE *fd, elf_ctx_t *ctx);
+
+// Advanced loading method.
+// If an ELF in to_load has valid=false, it will try to interpret this file.
+elf_link_t   elf_linked_load(size_t num_to_load, elf_ctx_t **to_load, FILE **to_load_fds, size_t num_loaded, elf_loaded_t **loaded);
 
 // Get the section header with the specified name.
 elf_sh_t    *elf_find_sect(elf_ctx_t *ctx, const char *name);

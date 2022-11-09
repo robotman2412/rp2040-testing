@@ -80,13 +80,17 @@ void funny_abort() {
 	while (1) sleep_ms(1000);
 }
 
-int fancy_callback() {
-	printf("Callback activated!\n");
+int fancy_callback(int in) {
+	printf("Callback %08x\n", in);
+	fflush(stdout);
+	sleep_ms(200);
 	return 12;
 }
 
 void *funny_resolver(elf_loaded_t *loaded, const char *name, bool allow_object, bool allow_function) {
 	printf("Resolver activated!\n");
+	fflush(stdout);
+	sleep_ms(200);
 	return fancy_callback;
 }
 
