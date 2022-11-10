@@ -98,7 +98,7 @@ int main() {
 	stdio_init_all();
 	sleep_ms(2500);
 	printf("\n\n\n\n\n\n\n\n\n\n\n\nStartup time!\n\n");
-	sleep_ms(2000);
+	sleep_ms(500);
 	
 	FILE *elf_fd = fmemopen((void *) elf_file, elf_file_length, "r");
 	
@@ -106,11 +106,34 @@ int main() {
 	elf_ctx_t *ctx_arr[1] = {&ctx};
 	if (ctx.valid) {
 		printf("Interpret success!\n");
-		sleep_ms(2000);
+		sleep_ms(500);
 		elf_link_t link = elf_linked_load(1, ctx_arr, &elf_fd, 0, NULL);
 		
 		if (link.valid) {
 			printf("Link success!\n");
+			sleep_ms(500);
+			
+			const char *sym_name = "dot";
+			int (*ptr)() = elf_adrof_sym(&link, sym_name, true, true);
+			if (ptr) {
+				printf("%s at %p\n", sym_name, ptr);
+				sleep_ms(500);
+				
+				printf("Returns %08x\n", ptr());
+			} else {
+				printf("%s not found\n", sym_name);
+			}
+			
+			// const char *sym_name = "lol";
+			// int *ptr = elf_adrof_sym(&link, sym_name, true, true);
+			// if (ptr) {
+			// 	printf("%s at %p\n", sym_name, ptr);
+			// 	sleep_ms(500);
+				
+			// 	printf("Value %08x\n", *ptr);
+			// } else {
+			// 	printf("%s not found\n", sym_name);
+			// }
 		} else {
 			printf("Link error!\n");
 		}

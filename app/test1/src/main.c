@@ -17,37 +17,17 @@
 
 #include <elfloader_client_data.h>
 
-static elf_client_data_t _client_data;
+int lol = 0xdeadbeef;
+// static int lmao = 0x12345678;
 
-static int _pre_resolve_callback(int in);
+// int quantum() {
+// 	return lol;
+// }
 
-static int (*_pointer_callback)(int) = _pre_resolve_callback;
+// int dot() {
+// 	return lmao;
+// }
 
-static int _pre_resolve_callback(int in) {
-	_pointer_callback = _client_data.resolver(_client_data.resolver_ctx, "callback", false, true);
-	if (!_pointer_callback) _client_data.abort();
-	return _pointer_callback(in);
-}
-
-int callback(int in) {
-	return _pointer_callback(in);
-}
-
-static void dummy() {}
-
-#define PREINITDATA dummy
-void (*preinitvar)() = PREINITDATA;
-
-static void *ptr_array[] = {
-	dummy, dummy, dummy, dummy,
-};
-
-void _start(elf_client_data_t client_data) {
-	static void *preinitlocal = PREINITDATA;
-	_client_data = client_data;
-	_pointer_callback = _pre_resolve_callback;
-	callback((int) preinitvar);
-	preinitvar = PREINITDATA;
-	callback((int) preinitvar);
-	callback((int) preinitlocal);
-}
+// void _start(elf_client_data_t client_data) {
+	
+// }

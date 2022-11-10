@@ -112,17 +112,17 @@ uint32_t elf_resolve_rel(elf_reloc_t *reloc, uint32_t got_address, uint32_t raw)
 	
 	#define A		reloc->addend
 	#define S		sym->vaddr
-	#define P		(reloc->target->vaddr + reloc->offset)
+	#define P		(reloc->offset + 1)
 	#define Pa		(P & 0xfffffffc)
 	#define T		((sym->parent->info & 0x0f == 0x02) && (sym->vaddr & 1))
-	// TODO B_S		???
+	#define B_S		0
 	#define GOT_ORG	got_address
 	#define GOT_S	sym->got_addr
 	
 	switch (reloc->type) {
 		case R_ARM_PC24:				return ((S + A) | T) - P;
 		case R_ARM_ABS32:				return (S + A) | T;
-		case R_ARM_REL32:				return ((S + A) | T) - P; // ((S + A) | T) | - P
+		case R_ARM_REL32:				return ((S + A) | T) - P;
 		case R_ARM_LDR_PC_G0:			return S + A - P;
 		case R_ARM_ABS16:				return S + A;
 		case R_ARM_ABS12:				return S + A;
@@ -139,7 +139,7 @@ uint32_t elf_resolve_rel(elf_reloc_t *reloc, uint32_t got_address, uint32_t raw)
 		case R_ARM_JUMP_SLOT:			return (S + A) | T;
 //		case R_ARM_RELATIVE:			return B_S + A; // Note: see Dynamic relocations
 		case R_ARM_GOTOFF32:			return ((S + A) | T) - GOT_ORG;
-//		case R_ARM_BASE_PREL:			return B_S + A - P;
+		case R_ARM_BASE_PREL:			return B_S + A - P;
 		case R_ARM_GOT_BREL:			return GOT_S + A - GOT_ORG;
 		case R_ARM_PLT32:				return ((S + A) | T) - P;
 		case R_ARM_CALL:				return ((S + A) | T) - P;

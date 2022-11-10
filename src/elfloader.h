@@ -93,6 +93,10 @@ typedef struct {
 	uint32_t size;
 	// Specifies the symbol's type.
 	uint8_t  info;
+	// The symbol's binding.
+	uint8_t  binding;
+	// The symbol's type.
+	uint8_t  type;
 	// The index of the section that this symbol is in.
 	uint16_t sect_idx;
 } elf_sym_t;
@@ -135,6 +139,8 @@ typedef struct {
 	uint32_t   vaddr;
 	// The global offset table address for this symbol, if any.
 	uint32_t   got_addr;
+	// Whether this symbol appears in the global offset table.
+	bool       got_present;
 } elf_load_sym_t;
 
 // A loaded to memory instance of a section.
@@ -183,12 +189,14 @@ typedef struct {
 	// Produced loaded ELF files.
 	elf_loaded_t *loaded;
 	
+	// The address of the global offset table.
+	size_t        got_addr;
 	// The address offset at which it is loaded.
 	// Addresses in elf_ctx_t are relative to this.
-	size_t vaddr;
+	size_t        vaddr;
 	// The memory that was allocated in which the program is loaded.
 	// WARNING: This is not allocated using malloc!
-	void  *memory;
+	void         *memory;
 } elf_link_t;
 
 // A relocation entry.
@@ -225,7 +233,10 @@ elf_sym_t   *elf_find_sym (elf_ctx_t *ctx, const char *name);
 
 // Get the loaded address of a symbol.
 // Returns NULL when not found.
-void        *elf_adrof_sym(elf_loaded_t *loaded, const char *name, bool allow_object, bool allow_function);
+void        *elf_adrof_sym_simple(elf_loaded_t *loaded, const char *name, bool allow_object, bool allow_function);
+// Get the loaded address of a symbol.
+// Returns NULL when not found.
+void        *elf_adrof_sym(elf_link_t *linkage, const char *name, bool allow_object, bool allow_function);
 
 #ifdef __cplusplus
 }

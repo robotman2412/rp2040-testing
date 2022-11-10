@@ -3,6 +3,7 @@
 #include <string.h>
 #include <malloc.h>
 #include <stdio.h>
+#include <pico/stdlib.h>
 
 uint32_t elf_resolve_rel(elf_reloc_t *reloc, uint32_t got_address, uint32_t raw);
 
@@ -287,6 +288,11 @@ elf_ctx_t elf_interpret(FILE *fd) {
 			READUINT(ctx.symbols[i].info, 1);
 			SKIP(1);
 			READUINT(ctx.symbols[i].sect_idx, 2);
+			if (ctx.symbols[i].sect_idx >= ctx.num_sect_header) {
+				ctx.symbols[i].sect_idx = 0;
+			}
+			ctx.symbols[i].type    = ctx.symbols[i].info & 0x0f;
+			ctx.symbols[i].binding = ctx.symbols[i].info >> 4;
 			
 			if (ctx.symbols[i].name_index) {
 				// Determine maximum name length.
@@ -296,8 +302,8 @@ elf_ctx_t elf_interpret(FILE *fd) {
 			}
 			
 			// Print out some stuff.
-			if (ctx.symbols[i].name) printf("Symbol %d (%s):\n", i, ctx.symbols[i].name);
-			else printf("Symbol %d (name not found):\n", i);
+			if (ctx.symbols[i].name) printf("Symbol %d (%02x; %s):\n", i, ctx.symbols[i].type, ctx.symbols[i].name);
+			else printf("Symbol %d (%02x; name not found):\n", i, ctx.symbols[i].type);
 			printf("Value:   %08x\n", ctx.symbols[i].value);
 			printf("Size:    %d\n",   ctx.symbols[i].size);
 			printf("Info:    %02x\n", ctx.symbols[i].info);
@@ -423,9 +429,10 @@ elf_loaded_t elf_load(FILE *fd, elf_ctx_t *ctx) {
 // Advanced loading method.
 elf_link_t elf_linked_load(size_t num_to_load, elf_ctx_t **to_load, FILE **to_load_fds, size_t num_loaded, elf_loaded_t **loaded) {
 	elf_link_t linked;
-	linked.num_loaded = 0;
-	linked.loaded = NULL;
-	elf_load_sh_t **sections = NULL;
+	linked.num_loaded           = 0;
+	linked.loaded               = NULL;
+	elf_load_sh_t **sections    = NULL;
+	FILE          **section_fds = NULL;
 	
 	// Interpret ELF files that weren't already.
 	for (size_t i = 0; i < num_to_load; i++) {
@@ -507,8 +514,9 @@ elf_link_t elf_linked_load(size_t num_to_load, elf_ctx_t **to_load, FILE **to_lo
 	}
 	
 	// Create a list of all sections to load.
-	sections = malloc(sizeof(elf_load_sh_t *) * n_sect);
-	if (!sections) {
+	sections    = malloc(sizeof(elf_load_sh_t *) * n_sect);
+	section_fds = malloc(sizeof(FILE *) * n_sect);
+	if (!sections || !section_fds) {
 		printf("Out of memory.\n");
 		goto error;
 	}
@@ -516,7 +524,8 @@ elf_link_t elf_linked_load(size_t num_to_load, elf_ctx_t **to_load, FILE **to_lo
 	for (size_t x = 0; x < num_to_load; x++) {
 		for (size_t y = 0; y < linked.loaded[x].num_sections; y++) {
 			if (linked.loaded[x].sections[y].do_load) {
-				sections[n_sect] = &linked.loaded[x].sections[y];
+				sections[n_sect]    = &linked.loaded[x].sections[y];
+				section_fds[n_sect] = to_load_fds[x];
 				n_sect ++;
 			}
 		}
@@ -524,8 +533,19 @@ elf_link_t elf_linked_load(size_t num_to_load, elf_ctx_t **to_load, FILE **to_lo
 	
 	// TODO: Sort sections.
 	
+	// Calculate global offset table size.
+	size_t num_got = 0;
+	for (size_t x = 0; x < num_to_load; x++) {
+		for (size_t y = 0; y < linked.loaded[x].num_symbols; y++) {
+			if (linked.loaded[x].symbols[y].got_present || 1) {
+				linked.loaded[x].symbols[y].got_addr = num_got * 4;
+				num_got ++;
+			}
+		}
+	}
+	
 	// Determine relative section addresses.
-	uint32_t relative_addr  = 0;
+	uint32_t relative_addr  = num_got * sizeof(size_t);
 	uint32_t align_required = 4;
 	for (size_t i = 0; i < n_sect; i++) {
 		uint32_t align = sections[i]->parent->alignment;
@@ -549,16 +569,25 @@ elf_link_t elf_linked_load(size_t num_to_load, elf_ctx_t **to_load, FILE **to_lo
 	}
 	
 	// Allocate program memory.
-	linked.memory = aligned_alloc(relative_addr, align_required);
+	linked.memory   = aligned_alloc(relative_addr, align_required);
+	memset(linked.memory, 0, relative_addr);
 	if (!linked.memory) {
 		printf("Out of memory.\n");
 		goto error;
 	}
-	linked.vaddr  = (size_t) linked.memory;
+	linked.vaddr    = (size_t) linked.memory;
+	linked.got_addr = linked.vaddr;
+	printf("Allocated %zu bytes at %p\n", relative_addr, linked.vaddr);
 	
-	// Add offset to section addresses.
+	// Add offset to section addresses and load sections.
 	for (size_t i = 0; i < n_sect; i++) {
 		sections[i]->vaddr += linked.vaddr;
+		printf("Loading %s to %p\n", sections[i]->parent->name, sections[i]->vaddr);
+		sleep_ms(10);
+		
+		FILE *fd = section_fds[i];
+		SEEK(sections[i]->parent->offset);
+		READ((void *) sections[i]->vaddr, sections[i]->parent->file_size);
 	}
 	
 	// Calculate symbol addresses.
@@ -567,9 +596,17 @@ elf_link_t elf_linked_load(size_t num_to_load, elf_ctx_t **to_load, FILE **to_lo
 		for (size_t y = 0; y < linked.loaded[x].num_symbols; y++) {
 			elf_load_sym_t *sym  = &linked.loaded[x].symbols[y];
 			elf_load_sh_t  *sect = &linked.loaded[x].sections[sym->parent->sect_idx];
-			if (sect->do_load) {
-				sym->vaddr = sect->vaddr + sym->parent->value;
+			if (!strcmp(sym->parent->name, "_GLOBAL_OFFSET_TABLE_")) {
+				sym->vaddr = linked.got_addr;
+			} else {
+				if (sect->do_load) {
+					sym->vaddr = sect->vaddr + sym->parent->value;
+				}
+				// if (linked.loaded[x].symbols[y].got_present || 1) {
+				// 	linked.loaded[x].symbols[y].got_addr += linked.got_addr;
+				// }
 			}
+			printf("%p: %s\n", sym->vaddr, sym->parent->name);
 		}
 	}
 	
@@ -582,7 +619,8 @@ elf_link_t elf_linked_load(size_t num_to_load, elf_ctx_t **to_load, FILE **to_lo
 			
 			// Look for relocation sections.
 			if(sect->type == SHT_RELA) {
-				elf_load_sh_t *target = &linked.loaded[x].sections[sect->link];
+				elf_load_sh_t *target = &linked.loaded[x].sections[sect->info];
+				printf("Rela entries for %s:\n", target->parent->name);
 				
 				// Iterate over all the entries.
 				for (size_t i = 0; i * sect->entry_size < sect->file_size; i++) {
@@ -606,12 +644,22 @@ elf_link_t elf_linked_load(size_t num_to_load, elf_ctx_t **to_load, FILE **to_lo
 					READUINT(reloc.addend, 4);
 					
 					// Modify the thing.
-					uint32_t *ptr = (uint32_t *) reloc.offset;
-					*ptr = elf_resolve_rel(&reloc, 0, *ptr);
+					uint8_t *ptr = (uint8_t *) (reloc.offset + target->vaddr);
+					const char *sym_name = linked.loaded[x].symbols[reloc.symbol].parent->name;
+					uint32_t    sym_val  = linked.loaded[x].symbols[reloc.symbol].vaddr; 
+					printf("Rel  (%02x; %2d) @%08x (%s @%08x, %08x)\n", reloc.type, reloc.symbol, reloc.offset, sym_name, sym_val, reloc.addend);
+					fflush(stdout);
+					sleep_ms(10);
+					uint32_t new_val = elf_resolve_rel(&reloc, 0, reloc.addend);
+					ptr[0] = new_val;
+					ptr[1] = new_val >> 8;
+					ptr[2] = new_val >> 16;
+					ptr[3] = new_val >> 24;
 				}
 				
 			} else if (sect->type == SHT_REL) {
-				elf_load_sh_t *target = &linked.loaded[x].sections[sect->link];
+				elf_load_sh_t *target = &linked.loaded[x].sections[sect->info];
+				printf("Rel  entries for %s:\n", target->parent->name);
 				
 				// Iterate over all the entries.
 				for (size_t i = 0; i * sect->entry_size < sect->file_size; i++) {
@@ -632,13 +680,26 @@ elf_link_t elf_linked_load(size_t num_to_load, elf_ctx_t **to_load, FILE **to_lo
 					reloc.symbol = info >> 8;
 					
 					// Modify the thing.
-					uint32_t *ptr = (uint32_t *) reloc.offset;
-					reloc.addend = *ptr;
-					*ptr = elf_resolve_rel(&reloc, 0, *ptr);
+					uint8_t *ptr = (uint8_t *) (reloc.offset + target->vaddr);
+					reloc.addend = ptr[0] | (ptr[1] << 8) | (ptr[2] << 16) | (ptr[3] << 24);
+					const char *sym_name = linked.loaded[x].symbols[reloc.symbol].parent->name;
+					uint32_t    sym_val  = linked.loaded[x].symbols[reloc.symbol].vaddr; 
+					printf("Rel  (%2d; %2d) @%08x (%s @%08x, %08x)\n", reloc.type, reloc.symbol, reloc.offset, sym_name, sym_val, reloc.addend);
+					fflush(stdout);
+					sleep_ms(10);
+					uint32_t new_val = elf_resolve_rel(&reloc, linked.got_addr, reloc.addend);
+					ptr[0] = new_val;
+					ptr[1] = new_val >> 8;
+					ptr[2] = new_val >> 16;
+					ptr[3] = new_val >> 24;
 				}
 			}
 		}
 	}
+	
+	linked.num_loaded = num_to_load;
+	linked.valid = true;
+	return linked;
 	
 	// Clean up on error.
 	error:
@@ -670,11 +731,23 @@ elf_sym_t *elf_find_sym(elf_ctx_t *ctx, const char *name) {
 
 // Get the loaded address of a symbol.
 // Returns NULL when not found.
-void *elf_adrof_sym(elf_loaded_t *loaded, const char *name, bool allow_object, bool allow_function) {
+void *elf_adrof_sym_simple(elf_loaded_t *loaded, const char *name, bool allow_object, bool allow_function) {
 	elf_sym_t *sym = elf_find_sym(loaded->ctx, name);
 	if (sym && (sym->info & 0xf0) == 0x10 && (((sym->info & 0x0f) == 0x01 && allow_object) || ((sym->info & 0x0f) == 0x02 && allow_function))) {
 		return (void *) ((size_t) sym->value + loaded->vaddr);
 	} else {
 		return NULL;
 	}
+}
+
+// Get the loaded address of a symbol.
+// Returns NULL when not found.
+void *elf_adrof_sym(elf_link_t *linkage, const char *name, bool allow_object, bool allow_function) {
+	for (size_t x = 0; x < linkage->num_loaded; x++) {
+		for (size_t y = 0; y < linkage->loaded[x].num_symbols; y++) {
+			elf_load_sym_t *sym = &linkage->loaded[x].symbols[y];
+			if (!strcmp(name, sym->parent->name)) return (void *) sym->vaddr;
+		}
+	}
+	return NULL;
 }
