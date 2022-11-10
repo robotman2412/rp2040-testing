@@ -15,6 +15,18 @@ extern "C" {
 #define ET_EXEC 0x02
 #define ET_DYN  0x03
 
+#define SHT_PROGBITS  1
+#define SHT_SYMTAB    2
+#define SHT_STRTAB    3
+#define SHT_RELA      4
+#define SHT_HASH      5
+#define SHT_DYNAMIC   6
+#define SHT_NOTE      7
+#define SHT_NOBITS    8
+#define SHT_REL       9
+#define SHT_SHLIB    10
+#define SHT_DYNSYM   11
+
 typedef struct elf_ctx elf_ctx_t;
 
 // A program header, which is used to load the progam for running.
@@ -122,7 +134,7 @@ typedef struct {
 	// The resolved virtual address.
 	uint32_t   vaddr;
 	// The global offset table address for this symbol, if any.
-	uint32_t  got_addr;
+	uint32_t   got_addr;
 } elf_load_sym_t;
 
 // A loaded to memory instance of a section.
@@ -131,21 +143,9 @@ typedef struct {
 	elf_sh_t *parent;
 	// The resolved virtual address.
 	uint32_t  vaddr;
+	// Whether this sections needs to be loaded.
+	bool      do_load;
 } elf_load_sh_t;
-
-// A relocation entry.
-typedef struct {
-	// The section to which to apply this.
-	elf_load_sh_t *target;
-	// The offset in the target section at which to start.
-	uint32_t       offset;
-	// The symbol index used for reference.
-	uint32_t       symbol;
-	// The type of relocation performed.
-	uint8_t        type;
-	// A constant which helps with the magic.
-	uint32_t       addend;
-} elf_reloc_t;
 
 // A loaded instance of an ELF file.
 typedef struct {
@@ -155,10 +155,19 @@ typedef struct {
 	// The context from which this was loaded.
 	elf_ctx_t *ctx;
 	
+	// The number of sections loaded.
+	size_t          num_sections;
+	// The loaded sections.
+	elf_load_sh_t  *sections;
+	
+	// The number of symbols loaded.
+	size_t          num_symbols;
+	// The loaded symbols.
+	elf_load_sym_t *symbols;
+	
 	// The address offset at which it is loaded.
 	// Addresses in elf_ctx_t are relative to this.
 	size_t vaddr;
-	
 	// The memory that was allocated in which the program is loaded.
 	// WARNING: This is not allocated using malloc!
 	void  *memory;
@@ -173,7 +182,30 @@ typedef struct {
 	size_t        num_loaded;
 	// Produced loaded ELF files.
 	elf_loaded_t *loaded;
+	
+	// The address offset at which it is loaded.
+	// Addresses in elf_ctx_t are relative to this.
+	size_t vaddr;
+	// The memory that was allocated in which the program is loaded.
+	// WARNING: This is not allocated using malloc!
+	void  *memory;
 } elf_link_t;
+
+// A relocation entry.
+typedef struct {
+	// The section to which to apply this.
+	elf_load_sh_t *target;
+	// The loaded file to which to apply this.
+	elf_loaded_t  *ctx;
+	// The offset in the target section at which to start.
+	uint32_t       offset;
+	// The symbol index used for reference.
+	uint32_t       symbol;
+	// The type of relocation performed.
+	uint8_t        type;
+	// A constant which helps with the magic.
+	uint32_t       addend;
+} elf_reloc_t;
 
 // Interpret an ELF file before loading.
 elf_ctx_t    elf_interpret(FILE *fd);

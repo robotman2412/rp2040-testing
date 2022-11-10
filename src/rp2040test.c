@@ -103,6 +103,35 @@ int main() {
 	FILE *elf_fd = fmemopen((void *) elf_file, elf_file_length, "r");
 	
 	elf_ctx_t ctx = elf_interpret(elf_fd);
+	elf_ctx_t *ctx_arr[1] = {&ctx};
+	if (ctx.valid) {
+		printf("Interpret success!\n");
+		sleep_ms(2000);
+		elf_link_t link = elf_linked_load(1, ctx_arr, &elf_fd, 0, NULL);
+		
+		if (link.valid) {
+			printf("Link success!\n");
+		} else {
+			printf("Link error!\n");
+		}
+	} else {
+		printf("Interpret error!\n");
+	}
+	fflush(stdout);
+	
+	while(1) sleep_ms(100);
+}
+
+/*
+int main() {
+	stdio_init_all();
+	sleep_ms(2500);
+	printf("\n\n\n\n\n\n\n\n\n\n\n\nStartup time!\n\n");
+	sleep_ms(2000);
+	
+	FILE *elf_fd = fmemopen((void *) elf_file, elf_file_length, "r");
+	
+	elf_ctx_t ctx = elf_interpret(elf_fd);
 	if (ctx.valid) {
 		printf("Interpret success!\n");
 		sleep_ms(2000);
@@ -136,3 +165,4 @@ int main() {
 	
 	while(1) sleep_ms(100);
 }
+*/

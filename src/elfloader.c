@@ -344,7 +344,7 @@ elf_loaded_t elf_load(FILE *fd, elf_ctx_t *ctx) {
 	bool is_little_endian = ctx->is_le;
 	
 	// Assert file is relocatable.
-	if (ctx->type != ET_REL) {
+	if (ctx->type != ET_EXEC) {
 		printf("Error: Cannot load ELF type %02x (supported: 0x02; executable)\n", ctx->type);
 		goto error;
 	}
@@ -425,6 +425,7 @@ elf_link_t elf_linked_load(size_t num_to_load, elf_ctx_t **to_load, FILE **to_lo
 	elf_link_t linked;
 	linked.num_loaded = 0;
 	linked.loaded = NULL;
+	elf_load_sh_t **sections = NULL;
 	
 	// Interpret ELF files that weren't already.
 	for (size_t i = 0; i < num_to_load; i++) {
@@ -435,21 +436,209 @@ elf_link_t elf_linked_load(size_t num_to_load, elf_ctx_t **to_load, FILE **to_lo
 	
 	// Ensure validity of all inputs.
 	for (size_t i = 0; i < num_to_load; i++) {
-		if (!to_load[i]->valid) goto error;
+		if (!to_load[i]->valid) {
+			printf("Invalid input in linkage.\n");
+			goto error;
+		}
 	}
 	for (size_t i = 0; i < num_loaded; i++) {
-		if (!loaded[i]->valid) goto error;
+		if (!loaded[i]->valid) {
+			printf("Invalid input in linkage.\n");
+			goto error;
+		}
+	}
+	
+	// Allocate memory for files to load.
+	linked.loaded = malloc(sizeof(elf_loaded_t) * num_to_load);
+	if (!linked.loaded) {
+		printf("Out of memory.\n");
+		goto error;
+	}
+	
+	// Create bits of loading context.
+	for (size_t i = 0; i < num_to_load; i++) {
+		elf_loaded_t *ptr = &linked.loaded[i];
+		ptr->ctx          = to_load[i];
+		
+		// Copy sections for file.
+		ptr->num_sections = ptr->ctx->num_sect_header;
+		ptr->sections     = malloc(sizeof(elf_load_sh_t) * ptr->num_sections);
+		if (!ptr->sections) {
+			printf("Out of memory.\n");
+			goto error;
+		}
+		for (size_t x = 0; x < ptr->num_sections; x++) {
+			ptr->sections[x].parent = &ptr->ctx->sect_header[x];
+		}
+		
+		// Copy symbols for file.
+		ptr->num_symbols  = ptr->ctx->num_symbols;
+		ptr->symbols      = malloc(sizeof(elf_load_sym_t) * ptr->num_symbols);
+		if (!ptr->symbols) {
+			printf("Out of memory.\n");
+			goto error;
+		}
+		for (size_t x = 0; x < ptr->num_symbols; x++) {
+			ptr->symbols[x].parent = &ptr->ctx->symbols[x];
+		}
 	}
 	
 	// TODO: Enforce no duplicate symbols.
 	
-	// TODO: Mark out section to or not to load.
+	// Mark out section to or not to load.
+	for (size_t x = 0; x < num_to_load; x++) {
+		for (size_t y = 0; y < linked.loaded[x].num_sections; y++) {
+			elf_load_sh_t *sect = &linked.loaded[x].sections[y];
+			bool is_alloc = sect->parent->flags & 0x02;
+			sect->do_load = is_alloc;
+		}
+	}
+	
+	// Count amount of sections to load.
+	size_t n_sect = 0;
+	for (size_t x = 0; x < num_to_load; x++) {
+		for (size_t y = 0; y < linked.loaded[x].num_sections; y++) {
+			n_sect += linked.loaded[x].sections[y].do_load;
+		}
+	}
+	if (!n_sect) {
+		printf("Nothing to load.\n");
+		goto error;
+	}
+	
+	// Create a list of all sections to load.
+	sections = malloc(sizeof(elf_load_sh_t *) * n_sect);
+	if (!sections) {
+		printf("Out of memory.\n");
+		goto error;
+	}
+	n_sect = 0;
+	for (size_t x = 0; x < num_to_load; x++) {
+		for (size_t y = 0; y < linked.loaded[x].num_sections; y++) {
+			if (linked.loaded[x].sections[y].do_load) {
+				sections[n_sect] = &linked.loaded[x].sections[y];
+				n_sect ++;
+			}
+		}
+	}
 	
 	// TODO: Sort sections.
 	
-	// Determine section addresses.
-	uint32_t addr_min = UINT32_MAX;
-	uint32_t addr_max = 0;
+	// Determine relative section addresses.
+	uint32_t relative_addr  = 0;
+	uint32_t align_required = 4;
+	for (size_t i = 0; i < n_sect; i++) {
+		uint32_t align = sections[i]->parent->alignment;
+		
+		// Record maximum required alignment.
+		if (align > align_required) {
+			align_required = align;
+		}
+		
+		// Fix alignment, if any.
+		if (align > 1 && relative_addr) {
+			uint32_t offset = relative_addr % align;
+			if (offset) relative_addr += align - offset;
+		}
+		
+		// Set section's address.
+		sections[i]->vaddr = relative_addr;
+		
+		// Calculate in section's size.
+		relative_addr += sections[i]->parent->file_size;
+	}
+	
+	// Allocate program memory.
+	linked.memory = aligned_alloc(relative_addr, align_required);
+	if (!linked.memory) {
+		printf("Out of memory.\n");
+		goto error;
+	}
+	linked.vaddr  = (size_t) linked.memory;
+	
+	// Add offset to section addresses.
+	for (size_t i = 0; i < n_sect; i++) {
+		sections[i]->vaddr += linked.vaddr;
+	}
+	
+	// Calculate symbol addresses.
+	// TODO: Link symbols.
+	for (size_t x = 0; x < num_to_load; x++) {
+		for (size_t y = 0; y < linked.loaded[x].num_symbols; y++) {
+			elf_load_sym_t *sym  = &linked.loaded[x].symbols[y];
+			elf_load_sh_t  *sect = &linked.loaded[x].sections[sym->parent->sect_idx];
+			if (sect->do_load) {
+				sym->vaddr = sect->vaddr + sym->parent->value;
+			}
+		}
+	}
+	
+	// Apply relocations.
+	for (size_t x = 0; x < num_to_load; x++) {
+		for (size_t y = 0; y < linked.loaded[x].num_sections; y++) {
+			elf_sh_t *sect = linked.loaded[x].sections[y].parent;
+			FILE *fd = to_load_fds[x];
+			bool is_little_endian = linked.loaded[x].ctx->is_le;
+			
+			// Look for relocation sections.
+			if(sect->type == SHT_RELA) {
+				elf_load_sh_t *target = &linked.loaded[x].sections[sect->link];
+				
+				// Iterate over all the entries.
+				for (size_t i = 0; i * sect->entry_size < sect->file_size; i++) {
+					SEEK(sect->offset + sect->entry_size * i);
+					
+					// Offset in section.
+					elf_reloc_t reloc;
+					READUINT(reloc.offset, 4);
+					reloc.offset += target->vaddr;
+					
+					reloc.target = target;
+					reloc.ctx    = &linked.loaded[x];
+					
+					// Type and symbol.
+					uint32_t info;
+					READUINT(info, 4);
+					reloc.type   = info & 0xff;
+					reloc.symbol = info >> 8;
+					
+					// Addend.
+					READUINT(reloc.addend, 4);
+					
+					// Modify the thing.
+					uint32_t *ptr = (uint32_t *) reloc.offset;
+					*ptr = elf_resolve_rel(&reloc, 0, *ptr);
+				}
+				
+			} else if (sect->type == SHT_REL) {
+				elf_load_sh_t *target = &linked.loaded[x].sections[sect->link];
+				
+				// Iterate over all the entries.
+				for (size_t i = 0; i * sect->entry_size < sect->file_size; i++) {
+					SEEK(sect->offset + sect->entry_size * i);
+					
+					// Offset in section.
+					elf_reloc_t reloc;
+					READUINT(reloc.offset, 4);
+					reloc.offset += target->vaddr;
+					
+					reloc.target = target;
+					reloc.ctx    = &linked.loaded[x];
+					
+					// Type and symbol.
+					uint32_t info;
+					READUINT(info, 4);
+					reloc.type   = info & 0xff;
+					reloc.symbol = info >> 8;
+					
+					// Modify the thing.
+					uint32_t *ptr = (uint32_t *) reloc.offset;
+					reloc.addend = *ptr;
+					*ptr = elf_resolve_rel(&reloc, 0, *ptr);
+				}
+			}
+		}
+	}
 	
 	// Clean up on error.
 	error:

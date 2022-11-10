@@ -108,7 +108,7 @@ typedef enum {
 } arm_rel_t;
 
 uint32_t elf_resolve_rel(elf_reloc_t *reloc, uint32_t got_address, uint32_t raw) {
-	elf_load_sym_t *sym;
+	elf_load_sym_t *sym = &reloc->ctx->symbols[reloc->symbol];
 	
 	#define A		reloc->addend
 	#define S		sym->vaddr
