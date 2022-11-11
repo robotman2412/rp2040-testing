@@ -5,9 +5,9 @@
 // LR:		Link register; used for returns
 // PC:		Program counter; PC[0] is stored into EPSR T-bit
 // PSR:		Program status register; bitwise OR of APSR, IPSR, EPSR
-// APSR:		Application Program Status Register; [31]: negative; [30]: zero; [29]: carry; [28]: overflow
-// IPSR:		Interrupt Program Status Register
-// EPSR:		Execution Program Status Register; [24]: Thumb state (which IS to run)
+// APSR:	Application Program Status Register; [31]: negative; [30]: zero; [29]: carry; [28]: overflow
+// IPSR:	Interrupt Program Status Register
+// EPSR:	Execution Program Status Register; [24]: Thumb state (which IS to run)
 // PRIMASK:	Priority mask register
 // CONTROL:	Control register; [1]: stack sel (0: MSP as stack, 1: PSP as stack)
 
@@ -20,9 +20,11 @@
 int lol = 0xdeadbeef;
 // static int lmao = 0x12345678;
 
-// int quantum() {
-// 	return lol;
-// }
+int callback(int);
+
+int quantum() {
+	return callback(12);
+}
 
 // int dot() {
 // 	return lmao;

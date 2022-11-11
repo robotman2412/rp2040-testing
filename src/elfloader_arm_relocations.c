@@ -107,19 +107,181 @@ typedef enum {
 	R_ARM_THM_BF18				= 138,	// Static, Arm
 } arm_rel_t;
 
+uint32_t sign_extend(uint bits, uint32_t raw) {
+	if ((raw >> (bits-1)) & 1) {
+		raw |= UINT32_MAX - (1 << bits) + 1;
+	}
+	return raw;
+}
+
+static uint32_t read32le(uint8_t *location) {
+	return ((location)[0] | ((location)[1] << 8) | ((location)[2] << 16) | ((location)[3] << 24));
+}
+
+static uint32_t read16le(uint8_t *location) {
+	return ((location)[0] | ((location)[1] << 8));
+}
+
+static uint32_t ror32() {
+	
+}
+
+uint32_t elf_rel_get_addend(elf_reloc_t *reloc, uint8_t *location) {
+	
+	switch ((arm_rel_t) reloc->type) {
+		case R_ARM_ABS32:
+		case R_ARM_BASE_PREL:
+		case R_ARM_GLOB_DAT:
+		case R_ARM_GOTOFF32:
+		case R_ARM_GOT_BREL:
+		case R_ARM_GOT_PREL:
+		case R_ARM_REL32:
+		case R_ARM_RELATIVE:
+		case R_ARM_SBREL32:
+		case R_ARM_TARGET1:
+		case R_ARM_TLS_DTPMOD32:
+		case R_ARM_TLS_DTPOFF32:
+		case R_ARM_TLS_GD32:
+		case R_ARM_TLS_IE32:
+		case R_ARM_TLS_LDM32:
+		case R_ARM_TLS_LE32:
+		case R_ARM_TLS_LDO32:
+		case R_ARM_TLS_TPOFF32:
+			return read32le(location);
+		case R_ARM_PREL31:
+			return sign_extend(31, read32le(location));
+		case R_ARM_CALL:
+		case R_ARM_JUMP24:
+		case R_ARM_PC24:
+		case R_ARM_PLT32:
+			return sign_extend(26, read32le(location) << 2);
+		case R_ARM_THM_JUMP8:
+			return sign_extend(9,  read16le(location) << 1);
+		case R_ARM_THM_JUMP11:
+			return sign_extend(12, read16le(location) << 1);
+		case R_ARM_THM_JUMP19: {
+			uint16_t hi = read16le(location);
+			uint16_t lo = read16le(location + 2);
+			return sign_extend(
+				20,
+				((hi & 0x0400) << 10) | // S
+				((lo & 0x0800) <<  8) | // J2
+				((lo & 0x2000) <<  5) | // J1
+				((hi & 0x003f) << 12) | // imm6
+				((lo & 0x07ff) <<  1)   // imm11:0
+			);
+		}
+		case R_ARM_THM_CALL:
+		case R_ARM_THM_JUMP24: {
+			uint16_t hi = read16le(location);
+			uint16_t lo = read16le(location + 2);
+			return sign_extend(
+				24,
+				((hi & 0x0400)  << 14) |                 // S
+				(~((lo ^ (hi << 3)) << 10) & 0x800000) | // I1
+				(~((lo ^ (hi << 1)) << 11) & 0x400000) | // I2
+				((hi & 0x003ff) << 12) |                 // imm0
+				((lo & 0x007ff) <<  1)                   // imm11:0
+			);
+		}
+		case R_ARM_MOVW_ABS_NC:
+		case R_ARM_MOVT_ABS:
+		case R_ARM_MOVW_PREL_NC:
+		case R_ARM_MOVT_PREL:
+		case R_ARM_MOVW_BREL_NC:
+		case R_ARM_MOVT_BREL: {
+			uint32_t val = read32le(location);
+			return sign_extend(16,
+				((val & 0x000f0000) >> 4) |
+				 (val & 0x00000fff)
+			);
+		}
+		case R_ARM_THM_MOVW_ABS_NC:
+		case R_ARM_THM_MOVT_ABS:
+		case R_ARM_THM_MOVW_PREL_NC:
+		case R_ARM_THM_MOVT_PREL:
+		case R_ARM_THM_MOVW_BREL_NC:
+		case R_ARM_THM_MOVT_BREL: {
+			uint16_t hi = read16le(location);
+			uint16_t lo = read16le(location + 2);
+			return sign_extend(16,
+				((hi & 0x000f) << 12) | // imm4
+				((hi & 0x0400) <<  1) | // i
+				((lo & 0x7000) >>  4) | // imm3
+				 (lo & 0x00ff)          // imm8
+			);
+		}
+		case R_ARM_ALU_PC_G0:
+		case R_ARM_ALU_PC_G0_NC:
+		case R_ARM_ALU_PC_G1:
+		case R_ARM_ALU_PC_G1_NC:
+		case R_ARM_ALU_PC_G2: {
+			// TODO
+			return 0;
+			// uint32_t instr = read32le(location);
+			// uint32_t val   = ror32   (instr & 0xff, ((instr & 0xf00) >> 8) * 2);
+			// return (instr & 0x00400000) ? -val : val;
+		}
+		case R_ARM_LDR_PC_G0:
+		case R_ARM_LDR_PC_G1:
+		case R_ARM_LDR_PC_G2: {
+			uint32_t raw = read32le(location);
+			bool     u   = raw & 0x00800000;
+			uint32_t imm = raw & 0x00000fff;
+			return u ? imm : -imm;
+		}
+		case R_ARM_LDRS_PC_G0:
+		case R_ARM_LDRS_PC_G1:
+		case R_ARM_LDRS_PC_G2: {
+			uint32_t opcode = read32le(location);
+			bool     u      =  opcode & 0x00800000;
+			uint32_t imm4l  =  opcode & 0xf;
+			uint32_t imm4h  = (opcode & 0xf00) >> 4;
+			return u ? (imm4h | imm4l) : -(imm4h | imm4l);
+		}
+		case R_ARM_THM_ALU_PREL_11_0: {
+			uint16_t hi  = read16le(location);
+			uint16_t lo  = read16le(location + 2);
+			uint32_t imm = (hi & 0x0400) << 1 | // i
+						   (lo & 0x7000) >> 4 | // imm3
+						   (lo & 0x00ff);       // imm8
+			return (hi & 0x00f0) ? -imm : imm;
+		}
+		case R_ARM_THM_PC8:
+			// ADR and LDR (literal) encoding T1
+			// From ELF for the ARM Architecture the initial signed addend is formed
+			// from an unsigned field using expression (((imm8:00 + 4) & 0x3ff) – 4)
+			// this trick permits the PC bias of -4 to be encoded using imm8 = 0xff
+			return ((((read16le(location) & 0xff) << 2) + 4) & 0x3ff) - 4;
+		case R_ARM_THM_PC12: {
+			// LDR (literal) encoding T2, add = (U == '1') imm12
+			bool     u   = read16le(location) & 0x0080;
+			uint32_t imm = read16le(location + 2) & 0x0fff;
+			return u ? imm : -imm;
+		}
+		
+		default:
+			return 0;
+	}
+}
+
+uint32_t elf_rel_apply_value(elf_reloc_t *reloc, uint8_t *location, uint32_t value) {
+	
+}
+
 uint32_t elf_resolve_rel(elf_reloc_t *reloc, uint32_t got_address, uint32_t raw) {
 	elf_load_sym_t *sym = &reloc->ctx->symbols[reloc->symbol];
 	
 	#define A		reloc->addend
 	#define S		sym->vaddr
-	#define P		(reloc->offset + 1)
+	#define P		(reloc->offset)
 	#define Pa		(P & 0xfffffffc)
 	#define T		((sym->parent->info & 0x0f == 0x02) && (sym->vaddr & 1))
-	#define B_S		0
+	#define B_S		got_address
 	#define GOT_ORG	got_address
 	#define GOT_S	sym->got_addr
 	
-	switch (reloc->type) {
+	switch ((arm_rel_t) reloc->type) {
 		case R_ARM_PC24:				return ((S + A) | T) - P;
 		case R_ARM_ABS32:				return (S + A) | T;
 		case R_ARM_REL32:				return ((S + A) | T) - P;

@@ -102,18 +102,40 @@ int main() {
 	
 	FILE *elf_fd = fmemopen((void *) elf_file, elf_file_length, "r");
 	
+	elf_load_sym_t api_load_sym_dummy[] = {
+		{
+			.parent      = &(elf_sym_t) {
+				.name    = "callback",
+				.type    = 0x02,
+				.binding = 0x01,
+				.info    = 0x12,
+			},
+			.vaddr       = &fancy_callback,
+			.got_present = false,
+			.got_addr    = 0,
+		}
+	};
+	elf_loaded_t api_dummy = {
+		.valid        = true,
+		.num_symbols  = 1,
+		.num_sections = 0,
+		.symbols      = api_load_sym_dummy,
+	};
+	elf_loaded_t *api_dummy_arr[] = { &api_dummy };
+	
 	elf_ctx_t ctx = elf_interpret(elf_fd);
 	elf_ctx_t *ctx_arr[1] = {&ctx};
 	if (ctx.valid) {
 		printf("Interpret success!\n");
 		sleep_ms(500);
-		elf_link_t link = elf_linked_load(1, ctx_arr, &elf_fd, 0, NULL);
+		elf_link_t link = elf_linked_load(1, ctx_arr, &elf_fd, 1, api_dummy_arr);
 		
 		if (link.valid) {
+			printf("Dummy callback: %p\n", fancy_callback);
 			printf("Link success!\n");
 			sleep_ms(500);
 			
-			const char *sym_name = "dot";
+			const char *sym_name = "quantum";
 			int (*ptr)() = elf_adrof_sym(&link, sym_name, true, true);
 			if (ptr) {
 				printf("%s at %p\n", sym_name, ptr);

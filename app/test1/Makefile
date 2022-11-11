@@ -20,7 +20,7 @@ LDFLAGS_DEBUG	=$(CFLAGS) -g -DDEBUG
 all: $(TARGET)
 	cp $< build/output.elf
 
-debug: $(TARGET_DEBUG)
+debug: $(TARGET_DEBUG) Makefile
 	cp $< build/output.elf
 
 clean:
@@ -36,20 +36,20 @@ $(TARGET_DEBUG): $(OBJ_DEBUG)
 	$(COMPILER) $(LDFLAGS_DEBUG) -o $@ $^
 
 
-build/%.c.debug.o: src/%.c
+build/%.c.debug.o: src/%.c Makefile
 	@mkdir -p $(shell dirname $@)
 	$(COMPILER) $(CFLAGS_DEBUG) $(INCLUDES) -o $@ $<
 	@$(COMPILER) -S $(CFLAGS_DEBUG) $(INCLUDES) -o $@.S $<
 
-build/%.S.debug.o: src/%.S
+build/%.S.debug.o: src/%.S Makefile
 	@mkdir -p $(shell dirname $@)
 	$(COMPILER) $(CFLAGS_DEBUG) $(INCLUDES) -o $@ $<
 
-build/%.c.o: src/%.c
+build/%.c.o: src/%.c Makefile
 	@mkdir -p $(shell dirname $@)
 	$(COMPILER) $(CFLAGS) $(INCLUDES) -o $@ $<
 	@$(COMPILER) -S $(CFLAGS) $(INCLUDES) -o $@.S $<
 
-build/%.S.o: src/%.S
+build/%.S.o: src/%.S Makefile
 	@mkdir -p $(shell dirname $@)
 	$(COMPILER) $(CFLAGS) $(INCLUDES) -o $@ $<
