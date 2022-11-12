@@ -265,8 +265,94 @@ uint32_t elf_rel_get_addend(elf_reloc_t *reloc, uint8_t *location) {
 	}
 }
 
-uint32_t elf_rel_apply_value(elf_reloc_t *reloc, uint8_t *location, uint32_t value) {
+static void write32le(uint8_t *location, uint32_t value) {
+	location[0] = value;
+	location[1] = value >>  8;
+	location[2] = value >> 16;
+	location[3] = value >> 24;
+}
+
+static void write16le(uint8_t *location, uint32_t value) {
+	location[0] = value;
+	location[1] = value >> 8;
+}
+
+static void merge32le(uint8_t *location, uint32_t value, uint32_t replace_bits) {
+	location[0] = (location[0] & ~ replace_bits       ) | (value &  replace_bits);
+	location[1] = (location[1] & ~(replace_bits >>  8)) | (value & (replace_bits >>  8));
+	location[2] = (location[2] & ~(replace_bits >> 16)) | (value & (replace_bits >> 16));
+	location[3] = (location[3] & ~(replace_bits >> 24)) | (value & (replace_bits >> 24));
+}
+
+static void merge16le(uint8_t *location, uint16_t value, uint16_t replace_bits) {
+	location[0] = (location[0] & ~ replace_bits       ) | (value &  replace_bits);
+	location[1] = (location[1] & ~(replace_bits >>  8)) | (value & (replace_bits >>  8));
+}
+
+void elf_rel_apply_value(elf_reloc_t *reloc, uint8_t *location, uint32_t value) {
 	
+	switch ((arm_rel_t) reloc->type) {
+		case R_ARM_ABS32:
+		case R_ARM_BASE_PREL:
+		case R_ARM_GLOB_DAT:
+		case R_ARM_GOTOFF32:
+		case R_ARM_GOT_BREL:
+		case R_ARM_GOT_PREL:
+		case R_ARM_REL32:
+		case R_ARM_RELATIVE:
+		case R_ARM_SBREL32:
+		case R_ARM_TARGET1:
+		case R_ARM_TLS_DTPMOD32:
+		case R_ARM_TLS_DTPOFF32:
+		case R_ARM_TLS_GD32:
+		case R_ARM_TLS_IE32:
+		case R_ARM_TLS_LDM32:
+		case R_ARM_TLS_LE32:
+		case R_ARM_TLS_LDO32:
+		case R_ARM_TLS_TPOFF32:
+			write32le(location, value);
+			break;
+			
+		case R_ARM_PREL31:
+			merge32le(location, value, 0x7fffffff);
+			break;
+			
+		case R_ARM_CALL:
+		case R_ARM_JUMP24:
+		case R_ARM_PC24:
+		case R_ARM_PLT32:
+			merge32le(location, value >> 2, 0x03ffffff);
+			break;
+			
+		// TODO: Some stuff in between here.
+		
+		case R_ARM_THM_CALL:
+		case R_ARM_THM_JUMP24: {
+			uint16_t hi = 0, lo = 0;
+			hi |= (value >> 14) & 0x0400;
+			
+			lo |= (~value & 0x800000) >> 10;
+			// (~(lo << 10) & 0x800000); // I1
+			// (~((lo ^ (hi << 3)) << 10) & 0x800000); // I1
+			
+			lo |= (~value & 0x400000) >> 11;
+			// (~(lo << 11) & 0x400000); // I2
+			// (~((lo ^ (hi << 1)) << 11) & 0x400000); // I2
+			
+			hi |= (value >> 12) & 0x003ff;
+			lo |= (value >>  1) & 0x007ff;
+			
+			uint16_t mask_lo = 0x2fff;
+			uint16_t mask_hi = 0x07ff;
+			
+			merge16le(location, hi, mask_hi);
+			merge16le(location, lo, mask_lo);
+			
+		} break;
+			
+		default:
+			printf("Error: Don't know how to apply relocation type %d\n", reloc->type);
+	}
 }
 
 uint32_t elf_resolve_rel(elf_reloc_t *reloc, uint32_t got_address, uint32_t raw) {

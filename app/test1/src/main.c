@@ -20,7 +20,8 @@
 int lol = 0xdeadbeef;
 // static int lmao = 0x12345678;
 
-int callback(int);
+// int callback(int);
+extern int(*callback)(int);
 
 int quantum() {
 	return callback(12);

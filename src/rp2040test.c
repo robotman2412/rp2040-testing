@@ -135,27 +135,27 @@ int main() {
 			printf("Link success!\n");
 			sleep_ms(500);
 			
-			const char *sym_name = "quantum";
-			int (*ptr)() = elf_adrof_sym(&link, sym_name, true, true);
-			if (ptr) {
-				printf("%s at %p\n", sym_name, ptr);
-				sleep_ms(500);
-				
-				printf("Returns %08x\n", ptr());
-			} else {
-				printf("%s not found\n", sym_name);
-			}
-			
-			// const char *sym_name = "lol";
-			// int *ptr = elf_adrof_sym(&link, sym_name, true, true);
+			// const char *sym_name = "quantum";
+			// int (*ptr)() = elf_adrof_sym(&link, sym_name, true, true);
 			// if (ptr) {
 			// 	printf("%s at %p\n", sym_name, ptr);
 			// 	sleep_ms(500);
 				
-			// 	printf("Value %08x\n", *ptr);
+			// 	printf("Returns %08x\n", ptr());
 			// } else {
 			// 	printf("%s not found\n", sym_name);
 			// }
+			
+			const char *sym_name = "dot";
+			int *ptr = elf_adrof_sym(&link, sym_name, true, true);
+			if (ptr) {
+				printf("%s at %p\n", sym_name, ptr);
+				sleep_ms(500);
+				
+				printf("Value %08x\n", *ptr);
+			} else {
+				printf("%s not found\n", sym_name);
+			}
 		} else {
 			printf("Link error!\n");
 		}
