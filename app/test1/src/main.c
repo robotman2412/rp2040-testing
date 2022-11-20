@@ -21,10 +21,14 @@ int lol = 0xdeadbeef;
 // static int lmao = 0x12345678;
 
 // int callback(int);
-extern int(*callback)(int);
+extern int(*pointerer)(int);
+
+int device(int in) {
+	return in << 1;
+}
 
 int quantum() {
-	return callback(12);
+	return pointerer(1);
 }
 
 // int dot() {

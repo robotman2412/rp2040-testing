@@ -439,25 +439,36 @@ static bool elf_needs_linking(elf_sym_t *sym) {
 }
 
 // Find the symbol to link against during elf_linked_load.
-static elf_load_sym_t *elf_find_link(size_t num_to_load, elf_ctx_t **to_load, FILE **to_load_fds, size_t num_loaded, elf_loaded_t **loaded, elf_link_t *linked, elf_load_sym_t *name) {
+static elf_load_sym_t *elf_find_link(size_t num_to_load, elf_ctx_t **to_load, FILE **to_load_fds, size_t num_loaded, elf_loaded_t **loaded, elf_link_t *linked, elf_load_sym_t *target) {
+	// Sanity check.
+	if (!target->parent || !target->parent->name) return NULL;
+	
 	// Check against internal stuff.
 	for (size_t x = 0; x < num_to_load; x++) {
 		for (size_t y = 0; y < linked->loaded[x].num_symbols; y++) {
 			elf_load_sym_t *sym = &linked->loaded[x].symbols[y];
-			if (!strcmp(name->parent->name, sym->parent->name) && name != sym && !elf_needs_linking(sym->parent)) {
+			// Sanity check.
+			if (!sym->parent || !sym->parent->name) continue;
+			
+			if (!strcmp(target->parent->name, sym->parent->name) && target != sym && !elf_needs_linking(sym->parent)) {
 				return sym;
 			}
 		}
 	}
+	
 	// Check against external stuff.
 	for (size_t x = 0; x < num_loaded; x++) {
 		for (size_t y = 0; y < loaded[x]->num_symbols; y++) {
 			elf_load_sym_t *sym = &loaded[x]->symbols[y];
-			if (!strcmp(name->parent->name, sym->parent->name) && name != sym && !elf_needs_linking(sym->parent)) {
+			// Sanity check.
+			if (!sym->parent || !sym->parent->name) continue;
+			
+			if (!strcmp(target->parent->name, sym->parent->name) && target != sym && !elf_needs_linking(sym->parent)) {
 				return sym;
 			}
 		}
 	}
+	
 	// Nothing found.
 	return NULL;
 }
@@ -466,7 +477,7 @@ static elf_load_sym_t *elf_find_link(size_t num_to_load, elf_ctx_t **to_load, FI
 // Returns false when there is an error.
 static bool elf_try_link(size_t num_to_load, elf_ctx_t **to_load, FILE **to_load_fds, size_t num_loaded, elf_loaded_t **loaded, elf_link_t *linked, elf_load_sym_t *sym) {
 	if (elf_needs_linking(sym->parent)) {
-		elf_load_sym_t *source = elf_find_link(num_to_load, to_load, to_load_fds, num_loaded, loaded, linked, sym->parent->name);
+		elf_load_sym_t *source = elf_find_link(num_to_load, to_load, to_load_fds, num_loaded, loaded, linked, sym);
 		printf("Found a link for %s\n", sym->parent->name);
 		if (!source) return false;
 		sym->vaddr = source->vaddr;
@@ -746,7 +757,7 @@ elf_link_t elf_linked_load(size_t num_to_load, elf_ctx_t **to_load, FILE **to_lo
 					reloc.addend = elf_rel_get_addend(&reloc, ptr);
 					const char *sym_name = linked.loaded[x].symbols[reloc.symbol].parent->name;
 					uint32_t    sym_val  = linked.loaded[x].symbols[reloc.symbol].vaddr; 
-					printf("Rel  (%2d; %2d) @%08x (%s @%08x, %08x)", reloc.type, reloc.symbol, reloc.offset, sym_name, sym_val, reloc.addend);
+					printf("Rel  (%2d) @%08x (%s @%08x, %08x)", reloc.type, reloc.offset, sym_name, sym_val, reloc.addend);
 					fflush(stdout);
 					sleep_ms(10);
 					uint32_t new_val = elf_resolve_rel(&reloc, linked.got_addr, reloc.addend);

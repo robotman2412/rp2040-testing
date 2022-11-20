@@ -102,6 +102,9 @@ int main() {
 	
 	FILE *elf_fd = fmemopen((void *) elf_file, elf_file_length, "r");
 	
+	int (*pointerer)() = fancy_callback;
+	void **metapointer = &pointerer;
+	
 	elf_load_sym_t api_load_sym_dummy[] = {
 		{
 			.parent      = &(elf_sym_t) {
@@ -113,11 +116,23 @@ int main() {
 			.vaddr       = &fancy_callback,
 			.got_present = false,
 			.got_addr    = 0,
-		}
+		},
+		{
+			.parent      = &(elf_sym_t) {
+				.name    = "pointerer",
+				.type    = 0x01,
+				.binding = 0x01,
+				.info    = 0x11,
+				.size    = 4,
+			},
+			.vaddr       = &pointerer,
+			.got_present = true,
+			.got_addr    = (size_t) pointerer,
+		},
 	};
 	elf_loaded_t api_dummy = {
 		.valid        = true,
-		.num_symbols  = 1,
+		.num_symbols  = 2,
 		.num_sections = 0,
 		.symbols      = api_load_sym_dummy,
 	};
@@ -132,30 +147,33 @@ int main() {
 		
 		if (link.valid) {
 			printf("Dummy callback: %p\n", fancy_callback);
+			printf("Pointerer:      %p\n", pointerer);
+			printf("Metapointer:    %p\n", metapointer);
 			printf("Link success!\n");
 			sleep_ms(500);
 			
-			// const char *sym_name = "quantum";
-			// int (*ptr)() = elf_adrof_sym(&link, sym_name, true, true);
-			// if (ptr) {
-			// 	printf("%s at %p\n", sym_name, ptr);
-			// 	sleep_ms(500);
-				
-			// 	printf("Returns %08x\n", ptr());
-			// } else {
-			// 	printf("%s not found\n", sym_name);
-			// }
-			
-			const char *sym_name = "dot";
-			int *ptr = elf_adrof_sym(&link, sym_name, true, true);
+			const char *sym_name = "quantum";
+			int (*ptr)() = elf_adrof_sym(&link, sym_name, true, true);
 			if (ptr) {
 				printf("%s at %p\n", sym_name, ptr);
 				sleep_ms(500);
 				
-				printf("Value %08x\n", *ptr);
+				printf("Returns %08x\n", ptr());
 			} else {
 				printf("%s not found\n", sym_name);
 			}
+			
+			// const char *sym_name = "dot";
+			// int *ptr = elf_adrof_sym(&link, sym_name, true, true);
+			// ptr = (int*) (0xfffffffc & (size_t) ptr);
+			// if (ptr) {
+			// 	printf("%s at %p\n", sym_name, ptr);
+			// 	sleep_ms(500);
+				
+			// 	printf("Value %08x\n", *ptr);
+			// } else {
+			// 	printf("%s not found\n", sym_name);
+			// }
 		} else {
 			printf("Link error!\n");
 		}

@@ -115,10 +115,10 @@ uint32_t sign_extend(uint bits, uint32_t raw) {
 }
 
 static uint32_t read32le(uint8_t *location) {
-	return ((location)[0] | ((location)[1] << 8) | ((location)[2] << 16) | ((location)[3] << 24));
+	return (location[0] | (location[1] << 8) | (location[2] << 16) | (location[3] << 24));
 }
 
-static uint32_t read16le(uint8_t *location) {
+static uint16_t read16le(uint8_t *location) {
 	return ((location)[0] | ((location)[1] << 8));
 }
 
@@ -328,26 +328,19 @@ void elf_rel_apply_value(elf_reloc_t *reloc, uint8_t *location, uint32_t value) 
 		
 		case R_ARM_THM_CALL:
 		case R_ARM_THM_JUMP24: {
-			uint16_t hi = 0, lo = 0;
-			hi |= (value >> 14) & 0x0400;
-			
-			lo |= (~value & 0x800000) >> 10;
-			// (~(lo << 10) & 0x800000); // I1
-			// (~((lo ^ (hi << 3)) << 10) & 0x800000); // I1
-			
-			lo |= (~value & 0x400000) >> 11;
-			// (~(lo << 11) & 0x400000); // I2
-			// (~((lo ^ (hi << 1)) << 11) & 0x400000); // I2
-			
-			hi |= (value >> 12) & 0x003ff;
-			lo |= (value >>  1) & 0x007ff;
-			
-			uint16_t mask_lo = 0x2fff;
-			uint16_t mask_hi = 0x07ff;
-			
-			merge16le(location, hi, mask_hi);
-			merge16le(location, lo, mask_lo);
-			
+			// Encoding B  T4, BL T1, BLX T2: Val = S:I1:I2:imm10:imm11:0
+			// checkInt(loc, val, 25, rel);
+			write16le(location,
+				0xf000 |					// opcode
+				((value >> 14) & 0x0400) |	// S
+				((value >> 12) & 0x03ff)	// imm10
+			);
+			write16le(location + 2,
+				(read16le(location + 2) & 0xd000) |				// opcode
+				(((~(value >> 10)) ^ (value >> 11)) & 0x2000) |	// J1
+				(((~(value >> 11)) ^ (value >> 13)) & 0x0800) |	// J2
+				((value >> 1) & 0x07ff)							// imm11
+			);
 		} break;
 			
 		default:

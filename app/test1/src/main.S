@@ -11,7 +11,7 @@
 	.file	"main.S"
 
 	.text
-	.align	1
+	.align	4
 	.global	quantum
 	.arch armv6s-m
 	.syntax unified
@@ -23,7 +23,7 @@ dot:
 	@ args = 0, pretend = 0, frame = 0
 	@ frame_needed = 1, uses_anonymous_args = 0
 	@ bl dot
-	.word dot
+	.word callback
 .L4:
 	.align	2
 .L3:

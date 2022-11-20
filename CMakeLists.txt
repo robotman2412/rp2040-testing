@@ -15,7 +15,7 @@ set(PICO_BOARD pico_w CACHE STRING "Board type")
 include(pico_sdk_import.cmake)
 
 if (PICO_SDK_VERSION_STRING VERSION_LESS "1.4.0")
-  message(FATAL_ERROR "Raspberry Pi Pico SDK version 1.4.0 (or later) required. Your version is ${PICO_SDK_VERSION_STRING}")
+	message(FATAL_ERROR "Raspberry Pi Pico SDK version 1.4.0 (or later) required. Your version is ${PICO_SDK_VERSION_STRING}")
 endif()
 
 project(rp2040test C CXX ASM)
@@ -34,20 +34,18 @@ pico_enable_stdio_uart(rp2040test 0)
 pico_enable_stdio_usb(rp2040test 1)
 
 # Add the standard library to the build
-target_link_libraries(rp2040test
-        pico_stdlib)
+target_link_libraries(rp2040test pico_stdlib)
 
 # Add the standard include files to the build
 target_include_directories(rp2040test PRIVATE
-  ${CMAKE_CURRENT_LIST_DIR}
-  ${CMAKE_CURRENT_LIST_DIR}/src
-  ${CMAKE_CURRENT_LIST_DIR}/shared
-  ${CMAKE_CURRENT_LIST_DIR}/.. # for our common lwipopts or any other standard includes, if required
+	${CMAKE_CURRENT_LIST_DIR}
+	${CMAKE_CURRENT_LIST_DIR}/src
+	${CMAKE_CURRENT_LIST_DIR}/shared
+	${CMAKE_CURRENT_LIST_DIR}/.. # for our common lwipopts or any other standard includes, if required
 )
 
 # Add any user requested libraries
-target_link_libraries(rp2040test
-        )
+target_link_libraries(rp2040test)
 
 pico_add_extra_outputs(rp2040test)
 
