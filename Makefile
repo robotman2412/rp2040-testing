@@ -19,5 +19,8 @@ flash: build
 clean:
 	rm -rf build/*
 
+probe:
+	cd /home/julian/pico/openocd && src/openocd -f interface/picoprobe.cfg -f target/rp2040.cfg -s tcl
+
 gdb:
 	gdb-multiarch -ex 'target remote localhost:3333' build/rp2040test.elf

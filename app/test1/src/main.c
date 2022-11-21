@@ -28,7 +28,7 @@ int device(int in) {
 }
 
 int quantum() {
-	return pointerer(1);
+	return pointerer;
 }
 
 // int dot() {

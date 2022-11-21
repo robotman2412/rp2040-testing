@@ -356,8 +356,8 @@ uint32_t elf_resolve_rel(elf_reloc_t *reloc, uint32_t got_address, uint32_t raw)
 	#define P		(reloc->offset)
 	#define Pa		(P & 0xfffffffc)
 	#define T		((sym->parent->info & 0x0f == 0x02) && (sym->vaddr & 1))
-	#define B_S		got_address
-	#define GOT_ORG	got_address
+	#define B_S		0
+	#define GOT_ORG	0
 	#define GOT_S	sym->got_addr
 	
 	switch ((arm_rel_t) reloc->type) {

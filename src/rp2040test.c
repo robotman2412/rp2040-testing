@@ -127,7 +127,7 @@ int main() {
 			},
 			.vaddr       = &pointerer,
 			.got_present = true,
-			.got_addr    = (size_t) pointerer,
+			.got_addr    = (size_t) metapointer,
 		},
 	};
 	elf_loaded_t api_dummy = {
@@ -158,7 +158,8 @@ int main() {
 				printf("%s at %p\n", sym_name, ptr);
 				sleep_ms(500);
 				
-				printf("Returns %08x\n", ptr());
+				int res = ptr();
+				printf("Returns %08x\n", res);
 			} else {
 				printf("%s not found\n", sym_name);
 			}
