@@ -218,8 +218,10 @@ typedef struct {
 // Interpret an ELF file before loading.
 elf_ctx_t    elf_interpret(FILE *fd);
 
-// Simple method of ELF file loading, but much more restrictive.
-elf_loaded_t elf_load     (FILE *fd, elf_ctx_t *ctx);
+// Load an ELF file into dynamically allocated memory.
+elf_loaded_t elf_load_dyn(FILE *fd, elf_ctx_t *ctx);
+// Load an ELF file into preallocated memory.
+elf_loaded_t elf_load(FILE *fd, elf_ctx_t *ctx, size_t paddr, size_t cap);
 
 // Advanced loading method.
 // If an ELF in to_load has valid=false, it will try to interpret this file.
@@ -229,7 +231,7 @@ elf_link_t   elf_linked_load(size_t num_to_load, elf_ctx_t **to_load, FILE **to_
 elf_sh_t    *elf_find_sect(elf_ctx_t *ctx, const char *name);
 
 // Find a symbol from the table.
-elf_sym_t   *elf_find_sym (elf_ctx_t *ctx, const char *name);
+elf_sym_t   *elf_find_sym(elf_ctx_t *ctx, const char *name);
 
 // Get the loaded address of a symbol.
 // Returns NULL when not found.

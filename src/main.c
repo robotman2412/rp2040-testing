@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "elfloader.h"
+#include "abi_impl.h"
 
 #define MPU_TYPE (*(uint32_t *) (PPB_BASE + 0xed90))
 #define MPU_CTRL (*(uint32_t *) (PPB_BASE + 0xed94))
@@ -11,6 +12,10 @@
 #define MPU_RASR (*(uint32_t *) (PPB_BASE + 0xeda0))
 
 #define M0_VTOR (*(uint32_t) (PPB_BASE + 0xed08))
+
+#define DYNLOAD_START 0x20030000
+#define DYNLOAD_END   0x20040000
+#define DYNLOAD_LEN   0x00010000
 
 extern const unsigned char elf_file[];
 extern const unsigned int elf_file_length;
@@ -72,26 +77,24 @@ file: /home/julian/the_projects/rp2040test/src/rp2040test.c
 
 */
 
-#include <elfloader_client_data.h>
-
-void funny_abort() {
-	printf("Abort called!\n");
-	fflush(stdout);
-	while (1) sleep_ms(1000);
+int callback(int in) {
+	printf("Callback! %d\n", in);
+	return in * 2;
 }
 
-int fancy_callback(int in) {
-	printf("Callback %08x\n", in);
-	fflush(stdout);
-	sleep_ms(200);
-	return 12;
-}
-
-void *funny_resolver(elf_loaded_t *loaded, const char *name, bool allow_object, bool allow_function) {
-	printf("Resolver activated!\n");
-	fflush(stdout);
-	sleep_ms(200);
-	return fancy_callback;
+void match_ptrtab(void **entry) {
+	printf("%s ", (const char *) *entry);
+	
+	for (size_t i = 0; i < abi_lut_len; i++) {
+		if (!strcmp(*entry, abi_lut[i].name)) {
+			*entry = abi_lut[i].pointer;
+			printf(" match: %p\n", *entry);
+			return;
+		}
+	}
+	
+	printf("not found!\n");
+	while (1);
 }
 
 int main() {
@@ -100,72 +103,136 @@ int main() {
 	printf("\n\n\n\n\n\n\n\n\n\n\n\nStartup time!\n\n");
 	sleep_ms(500);
 	
+	// Interpret ELF file.
 	FILE *elf_fd = fmemopen((void *) elf_file, elf_file_length, "r");
-	
-	elf_load_sym_t api_load_sym_dummy[] = {
-		{
-			.parent      = &(elf_sym_t) {
-				.name    = "callback",
-				.type    = 0x02,
-				.binding = 0x01,
-				.info    = 0x12,
-			},
-			.vaddr       = &fancy_callback,
-			.got_present = false,
-			.got_addr    = 0,
-		}
-	};
-	elf_loaded_t api_dummy = {
-		.valid        = true,
-		.num_symbols  = 1,
-		.num_sections = 0,
-		.symbols      = api_load_sym_dummy,
-	};
-	elf_loaded_t *api_dummy_arr[] = { &api_dummy };
-	
 	elf_ctx_t ctx = elf_interpret(elf_fd);
-	elf_ctx_t *ctx_arr[1] = {&ctx};
-	if (ctx.valid) {
-		printf("Interpret success!\n");
-		sleep_ms(500);
-		elf_link_t link = elf_linked_load(1, ctx_arr, &elf_fd, 1, api_dummy_arr);
-		
-		if (link.valid) {
-			printf("Dummy callback: %p\n", fancy_callback);
-			printf("Link success!\n");
-			sleep_ms(500);
-			
-			// const char *sym_name = "quantum";
-			// int (*ptr)() = elf_adrof_sym(&link, sym_name, true, true);
-			// if (ptr) {
-			// 	printf("%s at %p\n", sym_name, ptr);
-			// 	sleep_ms(500);
-				
-			// 	printf("Returns %08x\n", ptr());
-			// } else {
-			// 	printf("%s not found\n", sym_name);
-			// }
-			
-			const char *sym_name = "dot";
-			int *ptr = elf_adrof_sym(&link, sym_name, true, true);
-			if (ptr) {
-				printf("%s at %p\n", sym_name, ptr);
-				sleep_ms(500);
-				
-				printf("Value %08x\n", *ptr);
-			} else {
-				printf("%s not found\n", sym_name);
-			}
-		} else {
-			printf("Link error!\n");
-		}
-	} else {
-		printf("Interpret error!\n");
-	}
-	fflush(stdout);
 	
-	while(1) sleep_ms(100);
+	// Load ELF file into dedicated memory.
+	elf_loaded_t loaded = elf_load(elf_fd, &ctx, 0x20030000, 0x00010000);
+	
+	if (loaded.valid) {
+		printf("Load success!\n");
+		sleep_ms(50);
+		
+		// Obtain some information.
+		void **ptrtab = (void **) 0x20030000;
+		printf("Entry %p\n", ptrtab[0]);
+		sleep_ms(50);
+		
+		// Iterate over ptrtab.
+		for (size_t i = 1; ptrtab[i]; i++) {
+			// Try to resolve this one.
+			match_ptrtab(ptrtab + i);
+			sleep_ms(50);
+		}
+		
+		// Let's try to run it's entry vector.
+		printf("Trying to run now.\n");
+		sleep_ms(50);
+		
+		int (*entryFunc)() = ptrtab[0];
+		int res = entryFunc();
+		printf("Exit code %d (0x%x)\n", res, res);
+		
+	} else {
+		printf("Load failed.\n");
+	}
+	
+	while (1);
 }
+
+// void funny_abort() {
+// 	printf("Abort called!\n");
+// 	fflush(stdout);
+// 	while (1) sleep_ms(1000);
+// }
+
+// int fancy_callback(int in) {
+// 	printf("Callback %08x\n", in);
+// 	fflush(stdout);
+// 	sleep_ms(200);
+// 	return 12;
+// }
+
+// void *funny_resolver(elf_loaded_t *loaded, const char *name, bool allow_object, bool allow_function) {
+// 	printf("Resolver activated!\n");
+// 	fflush(stdout);
+// 	sleep_ms(200);
+// 	return fancy_callback;
+// }
+
+// int main() {
+// 	stdio_init_all();
+// 	sleep_ms(2500);
+// 	printf("\n\n\n\n\n\n\n\n\n\n\n\nStartup time!\n\n");
+// 	sleep_ms(500);
+	
+// 	FILE *elf_fd = fmemopen((void *) elf_file, elf_file_length, "r");
+	
+// 	elf_load_sym_t api_load_sym_dummy[] = {
+// 		{
+// 			.parent      = &(elf_sym_t) {
+// 				.name    = "callback",
+// 				.type    = 0x02,
+// 				.binding = 0x01,
+// 				.info    = 0x12,
+// 			},
+// 			.vaddr       = &fancy_callback,
+// 			.got_present = false,
+// 			.got_addr    = 0,
+// 		}
+// 	};
+// 	elf_loaded_t api_dummy = {
+// 		.valid        = true,
+// 		.num_symbols  = 1,
+// 		.num_sections = 0,
+// 		.symbols      = api_load_sym_dummy,
+// 	};
+// 	elf_loaded_t *api_dummy_arr[] = { &api_dummy };
+	
+// 	elf_ctx_t ctx = elf_interpret(elf_fd);
+// 	elf_ctx_t *ctx_arr[1] = {&ctx};
+// 	if (ctx.valid) {
+// 		printf("Interpret success!\n");
+// 		sleep_ms(500);
+// 		elf_link_t link = elf_linked_load(1, ctx_arr, &elf_fd, 1, api_dummy_arr);
+		
+// 		if (link.valid) {
+// 			printf("Dummy callback: %p\n", fancy_callback);
+// 			printf("Link success!\n");
+// 			sleep_ms(500);
+			
+// 			const char *sym_name = "quantum";
+// 			int (*ptr)() = elf_adrof_sym(&link, sym_name, true, true);
+// 			if (ptr) {
+// 				printf("%s at %p\n", sym_name, ptr);
+// 				sleep_ms(500);
+				
+// 				printf("Returns %08x\n", ptr());
+// 			} else {
+// 				printf("%s not found\n", sym_name);
+// 			}
+			
+// 			// const char *sym_name = "dot";
+// 			// int *ptr = elf_adrof_sym(&link, sym_name, true, true);
+// 			// if (ptr) {
+// 			// 	printf("%s at %p\n", sym_name, ptr);
+// 			// 	sleep_ms(500);
+				
+// 			// 	printf("Value %08x\n", *ptr);
+// 			// } else {
+// 			// 	printf("%s not found\n", sym_name);
+// 			// }
+// 		} else {
+// 			printf("Link error!\n");
+// 		}
+// 	} else {
+// 		printf("Interpret error!\n");
+// 	}
+// 	fflush(stdout);
+	
+// 	while(1) sleep_ms(100);
+// }
 
 /*
 int main() {

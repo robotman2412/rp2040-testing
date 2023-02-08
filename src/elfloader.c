@@ -345,8 +345,8 @@ elf_ctx_t elf_interpret(FILE *fd) {
 	return (elf_ctx_t) { false };
 }
 
-// Load an ELF file for execution.
-elf_loaded_t elf_load(FILE *fd, elf_ctx_t *ctx) {
+// Load an ELF file into dynamically allocated memory.
+elf_loaded_t elf_load_dyn(FILE *fd, elf_ctx_t *ctx) {
 	if (!ctx || !fd || !ctx->valid) return (elf_loaded_t) { false };
 	
 	elf_loaded_t loaded;
@@ -432,6 +432,88 @@ elf_loaded_t elf_load(FILE *fd, elf_ctx_t *ctx) {
 	return (elf_loaded_t) { false };
 }
 
+// Load an ELF file into preallocated memory.
+elf_loaded_t elf_load(FILE *fd, elf_ctx_t *ctx, size_t paddr, size_t cap) {
+	if (!ctx || !fd || !ctx->valid) return (elf_loaded_t) { false };
+	
+	elf_loaded_t loaded;
+	loaded.ctx = ctx;
+	loaded.memory = NULL;
+	
+	bool is_little_endian = ctx->is_le;
+	
+	// Assert file is relocatable.
+	if (ctx->type != ET_EXEC) {
+		printf("Error: Cannot load ELF type %02x (supported: 0x02; executable)\n", ctx->type);
+		goto error;
+	}
+	
+	// Assert machine type.
+	if (ctx->machine != 0x28) {
+		printf("Error: Cannot load ELF for machine type %02x (supported: 0x28; ARM)\n", ctx->machine);
+		goto error;
+	}
+	
+	// Determine required size.
+	size_t min_addr = SIZE_MAX;
+	size_t max_addr = 0;
+	for (size_t i = 0; i < ctx->num_prog_header; i++) {
+		elf_ph_t *ph = &ctx->prog_header[i];
+		if (ph->type == 1) {
+			if (ph->vaddr < min_addr) {
+				min_addr = ph->vaddr;
+			}
+			if (ph->vaddr + ph->mem_size > max_addr) {
+				max_addr = ph->vaddr + ph->mem_size;
+			}
+		}
+	}
+	size_t required = max_addr - min_addr;
+	if (min_addr == SIZE_MAX) return (elf_loaded_t) { false };
+	
+	// Check memory requirement.
+	if (required > cap) {
+		printf("Error: Cannot load ELF file of size %zu; capacity is %zu\n", required, cap);
+		goto error;
+	}
+	if (min_addr < paddr) {
+		printf("Error: Cannot satisfy address of ELF file: minimum address request is %08zx; available is %08zx", min_addr, paddr);
+		goto error;
+	}
+	if (max_addr > paddr + cap) {
+		printf("Error: Cannot satisfy address of ELF file: maximum address request is %08zx; available is %08zx", min_addr - 1, paddr + cap - 1);
+		goto error;
+	}
+	
+	// Checks succeeded, load data into memory now.
+	for (size_t i = 0; i < ctx->num_prog_header; i++) {
+		elf_ph_t *ph = &ctx->prog_header[i];
+		if (ph->type == 1) {
+			// Load this straight into memory.
+			fseek(fd, ph->offset, SEEK_SET);
+			size_t read = fread((void *) ph->vaddr, 1, ph->file_size, fd);
+			
+			// Double check load success.
+			if (read < ph->file_size) {
+				printf("Error: Unexpected end of file\n");
+				goto error;
+			}
+		}
+	}
+	
+	loaded.vaddr        = min_addr;
+	loaded.memory       = (void *) min_addr;
+	loaded.num_sections = 0;
+	loaded.sections     = 0;
+	loaded.num_symbols  = 0;
+	loaded.symbols      = 0;
+	loaded.valid        = true;
+	return loaded;
+	
+	error:
+	return (elf_loaded_t) { false };
+}
+
 // Determine whether a symbol needs to be linked.
 static bool elf_needs_linking(elf_sym_t *sym) {
 	if (!strcmp(sym->name, "_GLOBAL_OFFSET_TABLE_")) return false;
@@ -466,9 +548,9 @@ static elf_load_sym_t *elf_find_link(size_t num_to_load, elf_ctx_t **to_load, FI
 // Returns false when there is an error.
 static bool elf_try_link(size_t num_to_load, elf_ctx_t **to_load, FILE **to_load_fds, size_t num_loaded, elf_loaded_t **loaded, elf_link_t *linked, elf_load_sym_t *sym) {
 	if (elf_needs_linking(sym->parent)) {
-		elf_load_sym_t *source = elf_find_link(num_to_load, to_load, to_load_fds, num_loaded, loaded, linked, sym->parent->name);
-		printf("Found a link for %s\n", sym->parent->name);
+		elf_load_sym_t *source = elf_find_link(num_to_load, to_load, to_load_fds, num_loaded, loaded, linked, sym);
 		if (!source) return false;
+		printf("Found a link for %s\n", sym->parent->name);
 		sym->vaddr = source->vaddr;
 	}
 	return true;
@@ -662,14 +744,13 @@ elf_link_t elf_linked_load(size_t num_to_load, elf_ctx_t **to_load, FILE **to_lo
 	for (size_t x = 0; x < num_to_load; x++) {
 		for (size_t y = 0; y < linked.loaded[x].num_symbols; y++) {
 			elf_load_sym_t *sym = &linked.loaded[x].symbols[y];
-			
 			if (!elf_try_link(num_to_load, to_load, to_load_fds, num_loaded, loaded, &linked, sym)) {
 				printf("Unresolved symbol %s\n", sym->parent->name);
 				goto error;
 			}
 		}
 	}
-	printf("LINK LOL\n");
+	printf("linked\n");
 	sleep_ms(100);
 	
 	// Apply relocations.

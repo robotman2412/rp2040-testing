@@ -15,22 +15,42 @@
 // R0-R3:	Arguments / return values
 // R4-R11:	Locals (callee saved)
 
-#include <elfloader_client_data.h>
+#include <abi_all.h>
 
-int lol = 0xdeadbeef;
-// static int lmao = 0x12345678;
+// int _start();
+// void sleep_ms(unsigned);
 
-// int callback(int);
-extern int(*callback)(int);
+// __attribute__((section(".ptrtab")))
+// const void *ptrtab[] = {
+// 	_start,
+// 	"callback",
+// 	"printf",
+// 	(void *) 0
+// };
 
-int quantum() {
-	return callback(12);
+// int printf(const char *, ...);
+
+// typedef int(*printf_t)(const char*,...);
+// #define printf ((printf_t) ptrtab[2])
+
+// extern int test(const char *, ...);
+// extern int test();
+
+// int callback(int in) {
+// 	// Really just a function pointer forwardening.
+// 	return ( (int(*)(int)) ptrtab[1] )(in);
+// }
+
+void ultraprint(const char *str) {
+	while (*str) {
+		putchar(*str);
+		sleep_ms(100);
+		str++;
+	}
 }
 
-// int dot() {
-// 	return lmao;
-// }
-
-// void _start(elf_client_data_t client_data) {
-	
-// }
+int _start() {
+	// printf("This is very cool\n");
+	ultraprint("Hello, World!\n");
+	return 0;
+}

@@ -9,31 +9,39 @@ INCLUDES	=-Isrc -Ibuild -I../../shared
 TARGET		=build/test1.elf
 TARGET_DEBUG=build/test1.debug.elf
 
+PTRGEN          =../../ptrtab_gen.py
 COMPILER		=arm-none-eabi-gcc -mcpu=cortex-m0plus -mthumb
-CFLAGS			=-fPIC -fno-hosted -nostdlib -nodefaultlibs -c
+CFLAGS			=-fno-hosted -nostdlib -nodefaultlibs -c
 CFLAGS_DEBUG	=$(CFLAGS) -g -DDEBUG
-LDFLAGS			=-fPIC -fno-hosted -nostdlib -nodefaultlibs -r
+LDFLAGS			=-fno-hosted -nostdlib -nodefaultlibs -T linker.ld
 LDFLAGS_DEBUG	=$(CFLAGS) -g -DDEBUG
 
 .PHONY: all debug clean
 
-all: $(TARGET)
-	cp $< build/output.elf
+all: $(TARGET) build/ptrtab.s
+	$(COMPILER) $(LDFLAGS) -o build/output.elf $^
 
-debug: $(TARGET_DEBUG) Makefile
-	cp $< build/output.elf
+debug: $(TARGET_DEBUG) build/ptrtab.debug.s
+	$(COMPILER) $(LDFLAGS_DEBUG) -o build/output.elf $^
 
 clean:
 	rm -rf build/*
 
 
+build/ptrtab.s: $(TARGET) $(OBJECTS)
+	$(PTRGEN) $< $@ ../../shared/abi.txt
+
+build/ptrtab.debug.s: $(TARGET_DEBUG) $(OBJ_DEBUG)
+	$(PTRGEN) $< $@ ../../shared/abi.txt
+
+
 $(TARGET): $(OBJECTS)
 	@mkdir -p $(shell dirname $@)
-	$(COMPILER) $(LDFLAGS) -o $@ $^
+	$(COMPILER) -r $(LDFLAGS) -o $@ $^
 
 $(TARGET_DEBUG): $(OBJ_DEBUG)
 	@mkdir -p $(shell dirname $@)
-	$(COMPILER) $(LDFLAGS_DEBUG) -o $@ $^
+	$(COMPILER) -r $(LDFLAGS_DEBUG) -o $@ $^
 
 
 build/%.c.debug.o: src/%.c Makefile
