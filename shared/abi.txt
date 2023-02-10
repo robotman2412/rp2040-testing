@@ -1,6 +1,9 @@
 
 # From abi_stdio.h
 
+__get_reent
+__get_global_reent
+
 tmpfile
 tmpnam
 fopen
@@ -53,3 +56,15 @@ millis
 sleep_until
 sleep_us
 sleep_ms
+
+# TODO: From abi_gpio.h
+
+# From abi_malloc.h
+
+malloc
+free
+calloc
+realloc
+meminfo_total
+meminfo_inuse
+meminfo_free

@@ -15,42 +15,24 @@
 // R0-R3:	Arguments / return values
 // R4-R11:	Locals (callee saved)
 
-#include <abi_all.h>
+#include <stdio.h>
 
-// int _start();
-// void sleep_ms(unsigned);
-
-// __attribute__((section(".ptrtab")))
-// const void *ptrtab[] = {
-// 	_start,
-// 	"callback",
-// 	"printf",
-// 	(void *) 0
-// };
-
-// int printf(const char *, ...);
-
-// typedef int(*printf_t)(const char*,...);
-// #define printf ((printf_t) ptrtab[2])
-
-// extern int test(const char *, ...);
-// extern int test();
-
-// int callback(int in) {
-// 	// Really just a function pointer forwardening.
-// 	return ( (int(*)(int)) ptrtab[1] )(in);
-// }
-
-void ultraprint(const char *str) {
-	while (*str) {
-		putchar(*str);
-		sleep_ms(100);
-		str++;
+struct dumdum {
+	int a;
+	dumdum() {
+		printf("dumdum()\n");
+		a = 3;
 	}
-}
+	~dumdum() {
+		printf("~dumdum()\n");
+	}
+};
 
-int _start() {
-	// printf("This is very cool\n");
-	ultraprint("Hello, World!\n");
+static dumdum mine;
+
+int quantum = 123;
+
+extern "C" int main() {
+	printf("quantum %d\n", quantum);
 	return 0;
 }

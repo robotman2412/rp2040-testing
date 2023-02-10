@@ -25,19 +25,10 @@ def get_undefined_symbols(syms: list):
 	for sym in syms:
 		if sym["st_info"]["bind"] == "STB_GLOBAL" \
 			and sym["st_shndx"] == "SHN_UNDEF" \
-			and sym.name != "__ptrtab":
+			and sym.name in api_funcs:
 			out.append(sym)
 	
 	return out
-
-def check_api_presence(syms: list) -> bool:
-	"""Checks for presence of undefined symbols in the API"""
-	valid = True
-	for sym in syms:
-		if sym.name not in api_funcs:
-			print("Undefined reference to '" + sym.name + "'")
-			valid = False
-	return valid
 
 def generate_string(fd, name: str, data: str):
 	"""Generate a string constant in assembly"""
@@ -75,7 +66,6 @@ def process_file(elf_in_fd, asm_out_fd, ptr_base: int):
 	elf = ELFFile(elf_in_fd)
 	syms = get_symbols(elf)
 	ndef = get_undefined_symbols(syms)
-	if not check_api_presence(ndef): return False
 	
 	# Write warning label.
 	asm_out_fd.write("\n@ Warning: This is a generated file, do not edit it!\n\n")
@@ -97,9 +87,6 @@ def process_file(elf_in_fd, asm_out_fd, ptr_base: int):
 	asm_out_fd.write("\t.type __ptrtab, %object\n")
 	asm_out_fd.write("\t.size __ptrtab, " + str(ptrtab_size) + "\n\n")
 	asm_out_fd.write("__ptrtab:\n")
-	asm_out_fd.write("\t@ Entry vector.\n")
-	asm_out_fd.write("\t.global _start\n")
-	asm_out_fd.write("\t.word _start\n\n")
 	
 	# Write ptrtab entries.
 	asm_out_fd.write("\t@ ptrtab entries\n")
@@ -117,7 +104,7 @@ def process_file(elf_in_fd, asm_out_fd, ptr_base: int):
 	asm_out_fd.write("\t.thumb_func\n\n")
 	for i in range(len(ndef)):
 		sym = ndef[i]
-		generate_wrapper(asm_out_fd, sym.name, i+1, ptr_base)
+		generate_wrapper(asm_out_fd, sym.name, i, ptr_base)
 	
 	return True
 

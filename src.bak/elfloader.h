@@ -181,25 +181,66 @@ typedef struct {
 	size_t mem_size;
 } elf_loaded_t;
 
-// Interpret an ELF file before loading.
-// Unless `needs_extra_info` is true, this will only load the bare minimum:
-// Program headers and the entry vector.
-elf_ctx_t elf_interpret(FILE *fd, bool needs_extra_info);
-// Release resources from a loaded `elf_ctx_t`.
-void elf_free_ctx(elf_ctx_t ctx);
+// A linkage of multiple ELF files.
+typedef struct {
+	// Whether the linkage was successfully loaded.
+	bool          valid;
+	
+	// The amount of loaded ELF files.
+	size_t        num_loaded;
+	// Produced loaded ELF files.
+	elf_loaded_t *loaded;
+	
+	// The address of the global offset table.
+	size_t        got_addr;
+	// The address offset at which it is loaded.
+	// Addresses in elf_ctx_t are relative to this.
+	size_t        vaddr;
+	// The memory that was allocated in which the program is loaded.
+	// WARNING: This is not allocated using malloc!
+	void         *memory;
+} elf_link_t;
 
+// A relocation entry.
+typedef struct {
+	// The section to which to apply this.
+	elf_load_sh_t *target;
+	// The loaded file to which to apply this.
+	elf_loaded_t  *ctx;
+	// The offset in the target section at which to start.
+	uint32_t       offset;
+	// The symbol index used for reference.
+	uint32_t       symbol;
+	// The type of relocation performed.
+	uint8_t        type;
+	// A constant which helps with the magic.
+	uint32_t       addend;
+} elf_reloc_t;
+
+// Interpret an ELF file before loading.
+elf_ctx_t    elf_interpret(FILE *fd);
+
+// Load an ELF file into dynamically allocated memory.
+elf_loaded_t elf_load_dyn(FILE *fd, elf_ctx_t *ctx);
 // Load an ELF file into preallocated memory.
 elf_loaded_t elf_load(FILE *fd, elf_ctx_t *ctx, size_t paddr, size_t cap);
 
+// Advanced loading method.
+// If an ELF in to_load has valid=false, it will try to interpret this file.
+elf_link_t   elf_linked_load(size_t num_to_load, elf_ctx_t **to_load, FILE **to_load_fds, size_t num_loaded, elf_loaded_t **loaded);
+
 // Get the section header with the specified name.
-elf_sh_t *elf_find_sect(elf_ctx_t *ctx, const char *name);
+elf_sh_t    *elf_find_sect(elf_ctx_t *ctx, const char *name);
 
 // Find a symbol from the table.
-elf_sym_t *elf_find_sym(elf_ctx_t *ctx, const char *name);
+elf_sym_t   *elf_find_sym(elf_ctx_t *ctx, const char *name);
 
 // Get the loaded address of a symbol.
 // Returns NULL when not found.
-void *elf_adrof_sym(elf_loaded_t *loaded, const char *name, bool allow_object, bool allow_function);
+void        *elf_adrof_sym_simple(elf_loaded_t *loaded, const char *name, bool allow_object, bool allow_function);
+// Get the loaded address of a symbol.
+// Returns NULL when not found.
+void        *elf_adrof_sym(elf_link_t *linkage, const char *name, bool allow_object, bool allow_function);
 
 #ifdef __cplusplus
 }

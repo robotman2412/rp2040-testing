@@ -33,7 +33,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
 add_executable(rp2040test
 	src/main.c
 	src/elfloader.c
-	src/elfloader_arm_relocations.c
 	src/abi_impl.c
 	build/elf_file.c
 )

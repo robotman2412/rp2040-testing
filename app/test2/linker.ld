@@ -24,3 +24,10 @@ SECTIONS
 	.data   : { *(.data) *(.data*) }
 	.bss    : { *(.bss) *(.bss*) }
 }
+
+/*
+	Set the entry vector to _start.
+	Note that in this ABI, `int _start(void)` is a function that returns the program's exit code.
+	It is intended to be a wrapper around `int main(void)` to perform basic set-up.
+*/
+ENTRY(_start)
