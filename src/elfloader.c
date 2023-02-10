@@ -91,8 +91,6 @@ static const uint8_t elf_magic[4] = { 0x7f, 'E', 'L', 'F' };
 // Unless `needs_extra_info` is true, this will only load the bare minimum:
 // Program headers and the entry vector.
 elf_ctx_t elf_interpret(FILE *fd, bool needs_extra_info) {
-	// Check magic.
-	EXPECT(4, elf_magic);
 	elf_ctx_t ctx;
 	ctx.prog_header     = NULL;
 	ctx.num_prog_header = 0;
@@ -100,6 +98,10 @@ elf_ctx_t elf_interpret(FILE *fd, bool needs_extra_info) {
 	ctx.num_sect_header = 0;
 	ctx.symbols         = NULL;
 	ctx.num_symbols     = 0;
+	char *name_tmp = NULL;
+	
+	// Check magic.
+	EXPECT(4, elf_magic);
 	
 	// Check 32 bit type.
 	EXPECT(1, (const char[1]){1});
@@ -265,7 +267,6 @@ elf_ctx_t elf_interpret(FILE *fd, bool needs_extra_info) {
 	
 	// Load symbols from symtab.
 	elf_sh_t *symtab = elf_find_sect(&ctx, ".symtab");
-	char *name_tmp = NULL;
 	#ifdef ENABLE_DEBUG_LOGS
 	if (symtab) {
 		printf("ELF contains .symtab\n\n");

@@ -8,19 +8,14 @@
 extern const unsigned char elf_file[];
 extern const unsigned int elf_file_length;
 
-int callback(int in) {
-	printf("Callback! %d\n", in);
-	return in * 2;
-}
-
 bool match_ptrtab(void **entry) {
 	if ((size_t) *entry < 0x20030000 || (size_t) *entry > 0x2003efff) {
-		printf("Invalid entry in ptrtab (%p).\n", *entry)
+		printf("Invalid entry in ptrtab (%p).\n", *entry);
 		return false;
 	}
 	
 	for (size_t i = 0; i < abi_lut_len; i++) {
-		if (!strncmp(*entry, abi_lut[i].name)) {
+		if (!strcmp(*entry, abi_lut[i].name)) {
 			*entry = abi_lut[i].pointer;
 			return true;
 		}
@@ -30,6 +25,54 @@ bool match_ptrtab(void **entry) {
 	return false;
 }
 
+int unhexc(char in) {
+	if (in >= '0' && in <= '9') {
+		return in - '0';
+	} else if (in >= 'a' && in <= 'f') {
+		return in - 'a' + 0xa;
+	} else if (in >= 'A' && in <= 'F') {
+		return in - 'A' + 0xa;
+	}
+	return -1;
+}
+
+FILE *input_test() {
+	uint8_t *tmp = malloc(80*1024);
+	printf("Waiting for datas.\n");
+	size_t index = 0;
+	
+	while (1) {
+		int c;
+		while((c = getchar()) <= 0x20);
+		if (c == '!') {
+			putchar('\n');
+			break;
+		}
+		putchar(c);
+		
+		uint8_t decd = 0;
+		int msb = unhexc(c);
+		while((c = getchar()) == EOF);
+		putchar(c);
+		int lsb = unhexc(c);
+		if (msb >= 0 && lsb >= 0) {
+			decd = (msb<<4) | lsb;
+		}
+		
+		tmp[index] = decd;
+		index++;
+	}
+	
+	printf("Got datas:\n");
+	for (size_t i = 0; i < index; i++) {
+		printf("%02x ", tmp[i]);
+	}
+	printf("\n");
+	sleep_ms(50);
+	
+	return fmemopen(tmp, index, "r");
+}
+
 int main() {
 	stdio_init_all();
 	sleep_ms(2500);
@@ -37,7 +80,8 @@ int main() {
 	sleep_ms(500);
 	
 	// Interpret ELF file.
-	FILE *elf_fd = fmemopen((void *) elf_file, elf_file_length, "r");
+	// FILE *elf_fd = fmemopen((void *) elf_file, elf_file_length, "r");
+	FILE *elf_fd = input_test();
 	elf_ctx_t ctx = elf_interpret(elf_fd, false);
 	if (ctx.valid) {
 		printf("ELF file valid.\n");
@@ -76,6 +120,7 @@ int main() {
 	} else {
 		printf("ELF file invalid.\n");
 	}
+	fclose(elf_fd);
 	
 	while (1);
 }

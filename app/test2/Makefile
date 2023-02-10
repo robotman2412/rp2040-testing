@@ -1,5 +1,5 @@
 
-COMPILER=arm-none-eabi-gcc -mcpu=cortex-m0plus -mthumb
+COMPILER=arm-none-eabi-gcc -mcpu=cortex-m0plus -mthumb -Wl,-z,max-page-size=0x100
 PTRGEN  =../../ptrtab_gen.py
 ABI     =abi/abi.txt
 

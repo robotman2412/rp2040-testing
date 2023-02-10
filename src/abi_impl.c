@@ -80,7 +80,29 @@ const abi_entry_t abi_lut[] = {
 	{ "sleep_us", sleep_us },
 	{ "sleep_ms", sleep_ms },
 	
-	// TODO: From abi_gpio.h
+	// From abi_gpio.h
+	
+	{ "gpio_set_function", gpio_set_function },
+	{ "gpio_get_function", gpio_get_function },
+	{ "gpio_set_pulls", gpio_set_pulls },
+	{ "gpio_set_input_enabled", gpio_set_input_enabled },
+	{ "gpio_set_input_hysteresis_enabled", gpio_set_input_hysteresis_enabled },
+	{ "gpio_is_input_hysteresis_enabled", gpio_is_input_hysteresis_enabled },
+	
+	{ "gpio_set_slew_rate", gpio_set_slew_rate },
+	{ "gpio_get_slew_rate", gpio_get_slew_rate },
+	{ "gpio_set_drive_strength", gpio_set_drive_strength },
+	{ "gpio_get_drive_strength", gpio_get_drive_strength },
+	
+	{ "gpio_set_irq_enabled", gpio_set_irq_enabled },
+	{ "gpio_set_irq_callback", gpio_set_irq_callback },
+	{ "gpio_set_irq_enabled_with_callback", gpio_set_irq_enabled_with_callback },
+	{ "gpio_set_dormant_irq_enabled", gpio_set_dormant_irq_enabled },
+	{ "gpio_acknowledge_irq", gpio_acknowledge_irq },
+	
+	{ "gpio_init", gpio_init },
+	{ "gpio_deinit", gpio_deinit },
+	{ "gpio_init_mask", gpio_init_mask },
 	
 	// From abi_malloc.h
 	

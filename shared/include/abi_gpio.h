@@ -309,6 +309,7 @@ void gpio_set_drive_strength(uint gpio, enum gpio_drive_strength drive);
  */
 enum gpio_drive_strength gpio_get_drive_strength(uint gpio);
 
+
 /*! \brief Enable or disable specific interrupt events for specified GPIO
  *  \ingroup hardware_gpio
  *
@@ -335,7 +336,6 @@ enum gpio_drive_strength gpio_get_drive_strength(uint gpio);
  * which are specified in \ref gpio_irq_level
  */
 void gpio_set_irq_enabled(uint gpio, uint32_t event_mask, bool enabled);
-
 
 /*! \brief Set the generic callback used for GPIO IRQ events for the current core
  *  \ingroup hardware_gpio
