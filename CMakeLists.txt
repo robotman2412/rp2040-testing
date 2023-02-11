@@ -34,6 +34,7 @@ add_executable(rp2040test
 	src/main.c
 	src/elfloader.c
 	src/abi_impl.c
+	# src/ili9341/ili9341.c
 	build/elf_file.c
 )
 
@@ -50,12 +51,14 @@ pico_enable_stdio_uart(rp2040test 0)
 pico_enable_stdio_usb(rp2040test 1)
 
 # Add the standard library to the build
-target_link_libraries(rp2040test pico_stdlib)
+target_link_libraries(rp2040test pico_stdlib hardware_spi)
 
 # Add the standard include files to the build
 target_include_directories(rp2040test PRIVATE
 	${CMAKE_CURRENT_LIST_DIR}
 	${CMAKE_CURRENT_LIST_DIR}/src
+	# ${CMAKE_CURRENT_LIST_DIR}/src/ili9341
+	# ${CMAKE_CURRENT_LIST_DIR}/src/ili9341/include
 	${CMAKE_CURRENT_LIST_DIR}/shared
 	${CMAKE_CURRENT_LIST_DIR}/.. # for our common lwipopts or any other standard includes, if required
 )
