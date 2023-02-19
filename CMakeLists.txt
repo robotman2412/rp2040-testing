@@ -60,11 +60,12 @@ target_include_directories(rp2040test PRIVATE
 	# ${CMAKE_CURRENT_LIST_DIR}/src/ili9341
 	# ${CMAKE_CURRENT_LIST_DIR}/src/ili9341/include
 	${CMAKE_CURRENT_LIST_DIR}/shared
+	${CMAKE_CURRENT_LIST_DIR}/pax-graphics/src
 	${CMAKE_CURRENT_LIST_DIR}/.. # for our common lwipopts or any other standard includes, if required
 )
 
 # Add any user requested libraries
-target_link_libraries(rp2040test)
+target_link_libraries(rp2040test ${CMAKE_CURRENT_LIST_DIR}/pax-graphics/build/pax_graphics)
 
 pico_add_extra_outputs(rp2040test)
 
