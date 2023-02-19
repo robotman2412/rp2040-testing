@@ -1,0 +1,72 @@
+
+LCD Pinout:
+
+1       IM2
+2       IM1
+3       IM0
+4       GND
+5       K (3)
+6       K (2)
+7       K (1)
+8       A
+9:24    DB15:DB00
+25      GND
+26      RESET
+27      SPI SDO
+28      SPI SDI
+29      RD (parallel: read at rising edge)
+30      WR/RS (parallel: write at rising edge / SPI: register select)
+31      RS/SCK (parallel: register select / SPI: clock)
+32      CS
+33      FMARK (frame sync)
+34      VCI (+3.3v)
+35      IOVCC (+3.3v)
+36      GND
+37:40   something about touch
+
+
+
+Pi Pico pinout:
+
+SPI_MOSI    19
+SPI_MISO    16 (unused)
+SPI_SCLK    18
+
+DISPLAY_RST 13
+DISPLAY_CS  14
+DISPLAY_DCX 15 (same as SPI_DC for display)
+
+Connections:
+5   K3          200R to GND
+6   K2          200R to GND
+7   K1          200R to GND
+8   A           +3v3
+26  RESET       Pico 13: Display RESET
+28  SPI SDI     Pico 18: MOSI
+30  SPI RS      47R to Pico 15 Display DCX, 100K to GND
+31  SPI SCK     Pico 17: SCLK
+32  CS          Pico 14: Display CS
+
+
+
+ESP32 Pinout:
+
+SPI_MOSI    12
+SPI_MISO    13
+SPI_SCLK    21
+
+DISPLAY_RST 4
+DISPLAY_CS  16
+DISPLAY_DCX 17 (same as SPI_DC for display)
+
+Connections:
+5   K3          200R to GND
+6   K2          200R to GND
+7   K1          200R to GND
+8   A           +3v3
+26  RESET       ESP32  4: Display RESET
+28  SPI SDI     ESP32 12: MOSI
+30  SPI RS      47R to ESP32 17 Display DCX, 100K to GND
+31  SPI SCK     ESP32 21: SCLK
+32  CS          ESP32 16: Display CS
+
