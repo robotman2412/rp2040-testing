@@ -94,13 +94,13 @@ int main() {
 	uint16_t *buf = malloc(buf_size);
 	memset(buf, 0, buf_size);
 	
-	uint speed = spi_init(spi0, 1000000);
-	spi_set_format(spi0, 8, 1, 1, SPI_MSB_FIRST);
+	uint speed = spi_init(spi0, 40000000);
+	spi_set_format(spi0, 8, 0, 0, SPI_MSB_FIRST);
 	gpio_set_function(SPI_MISO, GPIO_FUNC_SPI);
 	gpio_set_function(SPI_MOSI, GPIO_FUNC_SPI);
 	gpio_set_function(SPI_SCLK, GPIO_FUNC_SPI);
-	uint8_t tmp;
-	spi_read_blocking(spi0, 0, &tmp, 1);
+	// uint8_t tmp;
+	// spi_read_blocking(spi0, 0, &tmp, 1);
 	gpio_init(DISP_CS);
 	gpio_init(DISP_DCX);
 	gpio_init(DISP_RST);
@@ -119,6 +119,7 @@ int main() {
 	printf("pre lcd init\n");
 	ili9341_init(&disp);
 	printf("post lcd init\n");
+	// while(1);
 	ili9341_write(&disp, buf);
 	printf("post lcd write\n");
 	

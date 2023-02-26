@@ -37,6 +37,9 @@ DISPLAY_CS  14
 DISPLAY_DCX 15 (same as SPI_DC for display)
 
 Connections:
+1   IM2         +3v3
+2   IM1         +3v3
+3   IM0         +3v3
 5   K3          200R to GND
 6   K2          200R to GND
 7   K1          200R to GND

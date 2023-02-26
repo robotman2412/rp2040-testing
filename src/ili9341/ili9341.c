@@ -75,8 +75,8 @@ static inline int gpio_set_direction(int num, bool out) {
 static int spi_transmit_helper(ILI9341 *device, spi_transaction_t *t) {
     gpio_set_level(device->pin_dcx, device->dc_level);
     gpio_set_level(device->pin_cs, 0);
-    sleep_us(200);
-    spi_write_blocking(spi0, t->tx_buffer, t->length);
+    sleep_us(20);
+    spi_write_blocking(spi0, t->tx_buffer, t->length/8);
     gpio_set_level(device->pin_cs, 1);
     return 0;
 }
@@ -230,15 +230,9 @@ int ili9341_reset(ILI9341* device) {
         ILI9341_LOG_INFO(TAG, "reset");
         gpio_set_direction(device->pin_reset, GPIO_MODE_OUTPUT);
         gpio_set_level(device->pin_reset, false);
-        sleep_ms(500);
+        sleep_ms(50);
         gpio_set_level(device->pin_reset, true);
-        // if (res != 0) return res;
-        // res = gpio_set_direction(device->pin_reset, GPIO_MODE_OUTPUT);
-        // if (res != 0) return res;
-        // sleep_ms(50);
-        // res = gpio_set_direction(device->pin_reset, GPIO_MODE_INPUT);
-        // if (res != 0) return res;
-        sleep_ms(500);
+        sleep_ms(50);
     } else {
         ILI9341_LOG_INFO(TAG, "(no reset pin available)");
         sleep_ms(100);
