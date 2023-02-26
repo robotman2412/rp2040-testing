@@ -6,6 +6,7 @@
 #include "abi_impl.h"
 #include "ili9341.h"
 #include <hardware/spi.h>
+#include "pax_gfx.h"
 
 extern const unsigned char elf_file[];
 extern const unsigned int elf_file_length;
@@ -89,18 +90,18 @@ int main() {
 	printf("\n\n\n\n\n\n\n\n\n\n\n\nStartup time!\n\n");
 	sleep_ms(500);
 	
-	size_t buf_len = 320 * 240;
-	size_t buf_size = 2 * buf_len;
-	uint16_t *buf = malloc(buf_size);
-	memset(buf, 0, buf_size);
+	size_t fb_len = 320 * 240;
+	size_t fb_size = 2 * fb_len;
+	uint16_t *fb = malloc(fb_size);
+	pax_buf_t buf;
+	pax_buf_init(&buf, fb, 320, 240, PAX_BUF_16_565RGB);
+	memset(fb, 0, fb_size);
 	
 	uint speed = spi_init(spi0, 40000000);
 	spi_set_format(spi0, 8, 0, 0, SPI_MSB_FIRST);
 	gpio_set_function(SPI_MISO, GPIO_FUNC_SPI);
 	gpio_set_function(SPI_MOSI, GPIO_FUNC_SPI);
 	gpio_set_function(SPI_SCLK, GPIO_FUNC_SPI);
-	// uint8_t tmp;
-	// spi_read_blocking(spi0, 0, &tmp, 1);
 	gpio_init(DISP_CS);
 	gpio_init(DISP_DCX);
 	gpio_init(DISP_RST);
@@ -116,12 +117,19 @@ int main() {
 		.callback   = NULL,
 		.spi_max_transfer_size = 8192,
 	};
-	printf("pre lcd init\n");
 	ili9341_init(&disp);
-	printf("post lcd init\n");
-	// while(1);
-	ili9341_write(&disp, buf);
-	printf("post lcd write\n");
+	while (1) {
+		pax_background(&buf, 0);
+		pax_push_2d(&buf);
+		pax_apply_2d(&buf, matrix_2d_translate(160, 120));
+		pax_apply_2d(&buf, matrix_2d_scale(50, 50));
+		uint32_t now = to_ms_since_boot(get_absolute_time());
+		float angle = now % 3000 / 3000.0 * M_PI * 2.0;
+		pax_apply_2d(&buf, matrix_2d_rotate(angle));
+		pax_draw_rect(&buf, 0xffff0000, -1, -1, 2, 2);
+		pax_pop_2d(&buf);
+		ili9341_write(&disp, fb);
+	}
 	
 	// Interpret ELF file.
 	FILE *elf_fd = fmemopen((void *) elf_file, elf_file_length, "r");
