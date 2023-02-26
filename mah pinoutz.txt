@@ -42,9 +42,9 @@ Connections:
 7   K1          200R to GND
 8   A           +3v3
 26  RESET       Pico 13: Display RESET
-28  SPI SDI     Pico 18: MOSI
+28  SPI SDI     Pico 19: MOSI
 30  SPI RS      47R to Pico 15 Display DCX, 100K to GND
-31  SPI SCK     Pico 17: SCLK
+31  SPI SCK     Pico 18: SCLK
 32  CS          Pico 14: Display CS
 
 

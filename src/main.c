@@ -4,8 +4,8 @@
 #include <stdlib.h>
 #include "elfloader.h"
 #include "abi_impl.h"
-// #include "ili9341.h"
-// #include <hardware/spi.h>
+#include "ili9341.h"
+#include <hardware/spi.h>
 
 extern const unsigned char elf_file[];
 extern const unsigned int elf_file_length;
@@ -89,24 +89,38 @@ int main() {
 	printf("\n\n\n\n\n\n\n\n\n\n\n\nStartup time!\n\n");
 	sleep_ms(500);
 	
-	// size_t buf_len = 320 * 240;
-	// size_t buf_size = 2 * buf_len;
-	// uint16_t *buf = malloc(buf_size);
-	// memset(buf, 0, buf_size);
+	size_t buf_len = 320 * 240;
+	size_t buf_size = 2 * buf_len;
+	uint16_t *buf = malloc(buf_size);
+	memset(buf, 0, buf_size);
 	
-	// spi_init(spi0, 100000);
+	uint speed = spi_init(spi0, 1000000);
+	spi_set_format(spi0, 8, 1, 1, SPI_MSB_FIRST);
+	gpio_set_function(SPI_MISO, GPIO_FUNC_SPI);
+	gpio_set_function(SPI_MOSI, GPIO_FUNC_SPI);
+	gpio_set_function(SPI_SCLK, GPIO_FUNC_SPI);
+	uint8_t tmp;
+	spi_read_blocking(spi0, 0, &tmp, 1);
+	gpio_init(DISP_CS);
+	gpio_init(DISP_DCX);
+	gpio_init(DISP_RST);
+	printf("SPI speed is %u\n", speed);
 	
-	// ILI9341 disp = {
-	// 	.spi_bus    = 0,
-	// 	.pin_cs     = DISP_CS,
-	// 	.pin_dcx    = DISP_DCX,
-	// 	.pin_reset  = DISP_RST,
-	// 	.rotation   = 1,
-	// 	.color_mode = true,
-	// 	.callback   = NULL,
-	// };
-	// ili9341_init(&disp);
-	// ili9341_write(&disp, buf);
+	ILI9341 disp = {
+		.spi_bus    = 0,
+		.pin_cs     = DISP_CS,
+		.pin_dcx    = DISP_DCX,
+		.pin_reset  = DISP_RST,
+		.rotation   = 1,
+		.color_mode = true,
+		.callback   = NULL,
+		.spi_max_transfer_size = 8192,
+	};
+	printf("pre lcd init\n");
+	ili9341_init(&disp);
+	printf("post lcd init\n");
+	ili9341_write(&disp, buf);
+	printf("post lcd write\n");
 	
 	// Interpret ELF file.
 	FILE *elf_fd = fmemopen((void *) elf_file, elf_file_length, "r");

@@ -230,7 +230,7 @@ int ili9341_reset(ILI9341* device) {
         ILI9341_LOG_INFO(TAG, "reset");
         gpio_set_direction(device->pin_reset, GPIO_MODE_OUTPUT);
         gpio_set_level(device->pin_reset, false);
-        sleep_ms(50);
+        sleep_ms(500);
         gpio_set_level(device->pin_reset, true);
         // if (res != 0) return res;
         // res = gpio_set_direction(device->pin_reset, GPIO_MODE_OUTPUT);
@@ -238,7 +238,7 @@ int ili9341_reset(ILI9341* device) {
         // sleep_ms(50);
         // res = gpio_set_direction(device->pin_reset, GPIO_MODE_INPUT);
         // if (res != 0) return res;
-        sleep_ms(50);
+        sleep_ms(500);
     } else {
         ILI9341_LOG_INFO(TAG, "(no reset pin available)");
         sleep_ms(100);
@@ -395,7 +395,7 @@ int ili9341_init(ILI9341* device) {
     }
     #endif
     #ifdef ILI9341_PICO
-    gpio_set_dir(device->pin_cs, 1);
+    gpio_set_dir(device->pin_cs, GPIO_MODE_OUTPUT);
     gpio_set_level(device->pin_cs, 1);
     #endif
 
@@ -466,6 +466,7 @@ int ili9341_write_partial_direct(ILI9341* device, const uint8_t *buffer, uint16_
     if (device->spi_device == NULL) return -1;
     if (device->mutex != NULL) xSemaphoreTake(device->mutex, portMAX_DELAY);
     #endif
+    printf("ili9341_set_addr_window\n");
     int res = ili9341_set_addr_window(device, x, y, width, height);
     if (res != 0) {
         #ifdef ILI9341_ESP32
@@ -479,6 +480,7 @@ int ili9341_write_partial_direct(ILI9341* device, const uint8_t *buffer, uint16_
         uint32_t length = device->spi_max_transfer_size;
         if (width * height * 2 - position < device->spi_max_transfer_size) length = width * height * 2 - position;
         
+        printf("ili9341_send %u %u\n", position, width * height * 2);
         res = ili9341_send(device, &buffer[position], length, true);
         if (res != 0) {
             #ifdef ILI9341_ESP32

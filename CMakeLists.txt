@@ -10,7 +10,7 @@ set(PICO_TARGET_LINKER_SCRIPT ${CMAKE_CURRENT_LIST_DIR}/memmap_custom.ld)
 
 # Initialise pico_sdk from installed location
 # (note this can come from environment, CMake cache etc)
-set(PICO_SDK_PATH "/home/julian/pico/pico-sdk")
+set(PICO_SDK_PATH "$ENV{HOME}/pico/pico-sdk")
 
 set(PICO_BOARD pico_w CACHE STRING "Board type")
 
@@ -34,7 +34,7 @@ add_executable(rp2040test
 	src/main.c
 	src/elfloader.c
 	src/abi_impl.c
-	# src/ili9341/ili9341.c
+	src/ili9341/ili9341.c
 	build/elf_file.c
 )
 
@@ -57,8 +57,8 @@ target_link_libraries(rp2040test pico_stdlib hardware_spi)
 target_include_directories(rp2040test PRIVATE
 	${CMAKE_CURRENT_LIST_DIR}
 	${CMAKE_CURRENT_LIST_DIR}/src
-	# ${CMAKE_CURRENT_LIST_DIR}/src/ili9341
-	# ${CMAKE_CURRENT_LIST_DIR}/src/ili9341/include
+	${CMAKE_CURRENT_LIST_DIR}/src/ili9341
+	${CMAKE_CURRENT_LIST_DIR}/src/ili9341/include
 	${CMAKE_CURRENT_LIST_DIR}/shared
 	${CMAKE_CURRENT_LIST_DIR}/pax-graphics/src
 	${CMAKE_CURRENT_LIST_DIR}/.. # for our common lwipopts or any other standard includes, if required
