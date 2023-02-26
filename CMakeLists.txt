@@ -38,12 +38,6 @@ add_executable(rp2040test
 	build/elf_file.c
 )
 
-# LINKER script will be PICO_TARGET_LINKER_SCRIPT if set on target, or ${CMAKE_CURRENT_LIST_DIR}/memmap_foo.ld
-# if PICO_TARGET_BINARY_TYPE is set to foo on the target, otherwise ${CMAKE_CURRENT_LIST_DIR}/memmap_${PICO_DEFAULT_BINARY_TYPE).ld
-# target_link_options(pico_standard_link INTERFACE
-# 	"LINKER:--script=memmap_custom.ld>"
-# )
-
 pico_set_program_name(rp2040test "rp2040test")
 pico_set_program_version(rp2040test "0.1")
 

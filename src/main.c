@@ -95,6 +95,7 @@ int main() {
 	uint16_t *fb = malloc(fb_size);
 	pax_buf_t buf;
 	pax_buf_init(&buf, fb, 320, 240, PAX_BUF_16_565RGB);
+	pax_buf_reversed(&buf, true);
 	memset(fb, 0, fb_size);
 	
 	uint speed = spi_init(spi0, 40000000);
