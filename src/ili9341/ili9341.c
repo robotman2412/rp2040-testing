@@ -460,7 +460,6 @@ int ili9341_write_partial_direct(ILI9341* device, const uint8_t *buffer, uint16_
     if (device->spi_device == NULL) return -1;
     if (device->mutex != NULL) xSemaphoreTake(device->mutex, portMAX_DELAY);
     #endif
-    printf("ili9341_set_addr_window\n");
     int res = ili9341_set_addr_window(device, x, y, width, height);
     if (res != 0) {
         #ifdef ILI9341_ESP32
@@ -474,7 +473,6 @@ int ili9341_write_partial_direct(ILI9341* device, const uint8_t *buffer, uint16_
         uint32_t length = device->spi_max_transfer_size;
         if (width * height * 2 - position < device->spi_max_transfer_size) length = width * height * 2 - position;
         
-        printf("ili9341_send %u %u\n", position, width * height * 2);
         res = ili9341_send(device, &buffer[position], length, true);
         if (res != 0) {
             #ifdef ILI9341_ESP32

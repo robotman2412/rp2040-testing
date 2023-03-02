@@ -1,7 +1,14 @@
 {
     "configurations": [
         {
-            "name": "Linux",
+            "name": "App/Test2",
+            "includePath": [
+                "${workspaceFolder}/pax-graphics/src/",
+                "${workspaceFolder}/shared/include/"
+            ]
+        },
+        {
+            "name": "Firmware",
             "includePath": [],
             "defines": [],
             "compilerPath": "/usr/bin/arm-none-eabi-gcc",

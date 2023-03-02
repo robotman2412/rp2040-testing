@@ -5,6 +5,9 @@
 #include <malloc.h>
 #include <sys/reent.h>
 
+#define GET_GENERATED_ABI_SYMBOLS
+#include "abi_generated.h"
+
 uint64_t micros() {
 	return get_absolute_time();
 }
@@ -21,7 +24,22 @@ void *get_global_reent_impl() {
 	return _GLOBAL_REENT;
 }
 
+extern void *disp_framebuffer;
+extern void *disp_pax_buffer;
+void *disp_get_framebuffer() {
+	return disp_framebuffer;
+}
+void *disp_get_pax_buffer() {
+	return disp_pax_buffer;
+}
+extern void disp_flush();
+
 const abi_entry_t abi_lut[] = {
+	
+	{ "disp_get_framebuffer", disp_get_framebuffer },
+	{ "disp_get_pax_buffer", disp_get_pax_buffer },
+	{ "disp_flush", disp_flush },
+	
 	// From abi_stdio.h
 	
 	{ "__get_reent", get_reent_impl },
@@ -110,6 +128,9 @@ const abi_entry_t abi_lut[] = {
 	{ "free", free },
 	{ "calloc", calloc },
 	{ "realloc", realloc },
+	
+	#define GET_GENERATED_ABI_LUT
+	#include "abi_generated.h"
 	
 };
 const size_t abi_lut_len = sizeof(abi_lut) / sizeof(abi_entry_t);

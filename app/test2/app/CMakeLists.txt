@@ -11,12 +11,16 @@ set(CMAKE_CXX_COMPILER_FORCED true)
 project(test2 LANGUAGES C CXX ASM)
 
 # Compiler options: Exceptions disabled, no system libraries.
-add_compile_options(-mcpu=cortex-m0plus -mthumb -nostdlib -nodefaultlibs -fno-exceptions)
+add_compile_options(-mcpu=cortex-m0plus -mthumb -std=gnu11 -nostdlib -nodefaultlibs -fno-exceptions)
 # Linker options: Relocatable, no system libraries
 add_link_options(-nostdlib -nodefaultlibs -r)
 
 # Add ABI files into include path.
-include_directories(../abi/include)
+include_directories(
+	../abi/include
+	../../../pax-graphics/src
+	../../../pax-graphics/src/cpp
+)
 
 # Create output file and add sources.
 add_executable(main.o

@@ -4,6 +4,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Find the first occurrance of `__c` in `__mem`, searching `__len` bytes.
 // Returns a pointer if found, NULL if not.
 void *memchr(const void *__mem, int __c, size_t __len);
@@ -79,3 +83,7 @@ char *strcpy(char *restrict __dst, const char *restrict __src);
 // Create a duplicate of `__src`.
 // Returns newly allocated memory with the copy.
 char *strdup(const char *__src);
+
+#ifdef __cplusplus
+}
+#endif

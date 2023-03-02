@@ -4,6 +4,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Allocate `__size` bytes of memory.
 // Returns memory, or NULL if not enough is available.
 void *malloc(size_t __size);
@@ -25,3 +29,7 @@ size_t meminfo_inuse();
 // Determines how many bytes of memory can be allocated.
 // Identical to `meminfo_total() - meminfo_inuse()`.
 size_t meminfo_free();
+
+#ifdef __cplusplus
+}
+#endif

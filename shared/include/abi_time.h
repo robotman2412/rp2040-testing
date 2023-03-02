@@ -1,6 +1,10 @@
 
 #include <stddef.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef uint64_t absolute_time_t;
 
 // Get current time in microseconds. [custom]
@@ -17,3 +21,7 @@ void sleep_us(uint64_t us);
 
 // Sleep for a given amount of milliseconds. [pico sdk]
 void sleep_ms(uint32_t ms);
+
+#ifdef __cplusplus
+}
+#endif

@@ -5,9 +5,6 @@ cmake_minimum_required(VERSION 3.13)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
-# Override linker script
-set(PICO_TARGET_LINKER_SCRIPT ${CMAKE_CURRENT_LIST_DIR}/memmap_custom.ld)
-
 # Initialise pico_sdk from installed location
 # (note this can come from environment, CMake cache etc)
 set(PICO_SDK_PATH "$ENV{HOME}/pico/pico-sdk")
@@ -31,10 +28,16 @@ pico_sdk_init()
 # Add executable. Default name is the project name, version 0.1
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
 add_executable(rp2040test
-	src/main.c
-	src/elfloader.c
-	src/abi_impl.c
 	src/ili9341/ili9341.c
+	src/filesystem/customio.cpp
+	src/filesystem/compoundfs.cpp
+	src/filesystem/devfs.cpp
+	src/filesystem/fatfs.cpp
+	src/blockdevice/blockdevice.cpp
+	src/blockdevice/flash_bd.cpp
+	src/abi_impl.c
+	src/elfloader.c
+	src/main.cpp
 	build/elf_file.c
 )
 
@@ -44,6 +47,9 @@ pico_set_program_version(rp2040test "0.1")
 pico_enable_stdio_uart(rp2040test 0)
 pico_enable_stdio_usb(rp2040test 1)
 
+# Override linker script
+pico_set_linker_script(rp2040test ${CMAKE_CURRENT_LIST_DIR}/memmap_custom.ld)
+
 # Add the standard library to the build
 target_link_libraries(rp2040test pico_stdlib hardware_spi)
 
@@ -51,7 +57,8 @@ target_link_libraries(rp2040test pico_stdlib hardware_spi)
 target_include_directories(rp2040test PRIVATE
 	${CMAKE_CURRENT_LIST_DIR}
 	${CMAKE_CURRENT_LIST_DIR}/src
-	${CMAKE_CURRENT_LIST_DIR}/src/ili9341
+	${CMAKE_CURRENT_LIST_DIR}/src/filesystem
+	${CMAKE_CURRENT_LIST_DIR}/src/blockdevice
 	${CMAKE_CURRENT_LIST_DIR}/src/ili9341/include
 	${CMAKE_CURRENT_LIST_DIR}/shared
 	${CMAKE_CURRENT_LIST_DIR}/.. # for our common lwipopts or any other standard includes, if required

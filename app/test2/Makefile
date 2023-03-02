@@ -1,5 +1,5 @@
 
-COMPILER=arm-none-eabi-gcc -mcpu=cortex-m0plus -mthumb -Wl,-z,max-page-size=0x100
+COMPILER=arm-none-eabi-gcc -mcpu=cortex-m0plus -mthumb -std=gnu11 -Wl,-z,max-page-size=0x100
 PTRGEN  =../../ptrtab_gen.py
 ABI     =abi/abi.txt
 
@@ -37,6 +37,6 @@ build/ptrtab.o: build/ptrtab.s
 	$(COMPILER) -o $@ -c $<
 
 # Generate ptrtab.s for main+library.
-build/ptrtab.s: build/main_and_abi.o
+build/ptrtab.s: build/main_and_abi.o abi/abi.txt
 	@mkdir -p build
 	$(PTRGEN) $< $@ $(ABI)

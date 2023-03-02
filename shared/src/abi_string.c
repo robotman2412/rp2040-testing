@@ -20,7 +20,7 @@ void *memchr(const void *__mem, int __c, size_t __len) {
 // Returns >0, 0, <0 when a>b, a==b, a<b respectively.
 int memcmp(const void *__a, const void *__b, size_t __len) {
 	for (size_t i = 0; i < __len; i++) {
-		int diff = *(const char *) __a - *(const char *) __b;
+		int diff = ((const char *) __a)[i] - ((const char *) __b)[i];
 		if (diff) return diff;
 	}
 	return 0;
