@@ -49,4 +49,7 @@ class CompoundFS: public Filesystem {
 		// Try to remove a file.
 		// The given path should already be in absolute form.
 		bool remove(FileError &ec, const Path &path);
+		// Force any cached writes to be written to the media immediately.
+		// You should call this occasionally to prevent data loss and also every time before shutdown.
+		bool sync(FileError &ec);
 };

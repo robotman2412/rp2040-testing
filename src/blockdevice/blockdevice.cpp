@@ -44,7 +44,7 @@ FileError BlockDevice::read(off_t offset, uint8_t *out, std::size_t length) {
 }
 
 // Write a range of bytes to this block device.
-FileError BlockDevice::write(off_t offset, uint8_t *in, std::size_t length) {
+FileError BlockDevice::write(off_t offset, const uint8_t *in, std::size_t length) {
 	FileError ec = FileError::OK;
 	if (!length) return ec;
 	

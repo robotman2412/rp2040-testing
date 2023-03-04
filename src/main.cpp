@@ -10,9 +10,16 @@
 #include "customio.hpp"
 #include "devfs.hpp"
 #include "compoundfs.hpp"
+#include "flash_bd.hpp"
+#include "rom_bd.hpp"
+#include "fatfs.hpp"
+#include "util.h"
 
 extern const unsigned char elf_file[];
 extern const unsigned int elf_file_length;
+
+extern const unsigned char fatty_iso[];
+extern const unsigned int fatty_iso_length;
 
 #define SPI_MOSI    19
 #define SPI_MISO    16 // (unused)
@@ -87,6 +94,40 @@ FILE *input_test() {
 	return fmemopen(tmp, index, "r");
 }
 
+void flash_test() {
+	FlashBD dev(512, 2032 * 1024, 16 * 1024);
+	
+	// Read some bytes.
+	uint8_t *temp = new uint8_t[dev.blockSize()];
+	dev.readBlock(0, temp, dev.blockSize());
+	printf("Flash initial value:\n");
+	hexdump(temp, 64);
+	
+	// Write some bytes.
+	for (size_t i = 0; i < dev.blockSize(); i++) {
+		temp[i]++;
+	}
+	dev.writeBlock(0, temp, dev.blockSize());
+	dev.sync();
+	printf("Flash new value:\n");
+	hexdump(temp, 64);
+}
+
+void fat_test() {
+	// Make a read-only thing to mount from.
+	auto media = std::make_unique<RomBD>(fatty_iso, 512, fatty_iso_length);
+	// Make the FAT filesystem.
+	auto fat = std::make_shared<FatFS>(FatFS(std::move(media), false));
+	FileError ec{OK};
+	auto listing = fat->list(ec, "/");
+	for (auto entry: listing) {
+		if (entry.isDirectory)
+		printf("%-13s: directory\n", entry.name.c_str());
+		else
+		printf("%-13s: %u bytes\n", entry.name.c_str(), entry.size);
+	}
+}
+
 pax_buf_t *disp_pax_buffer;
 void *disp_framebuffer;
 
@@ -110,6 +151,9 @@ int main() {
 	sleep_ms(2500);
 	printf("\n\n\n\n\n\n\n\n\n\n\n\nStartup time!\n\n");
 	sleep_ms(500);
+	
+	fat_test();
+	while (1);
 	
 	auto ptr = std::make_shared<CompoundFS>();
 	ptr->mount("/dev", std::make_shared<DevFS>());

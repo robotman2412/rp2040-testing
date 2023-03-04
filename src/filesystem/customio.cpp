@@ -23,34 +23,42 @@ static std::string cwd = "/home/user";
 
 // Wrapper for FileDesc::read.
 static int read_wrapper(struct _reent *reent, void *cookie, char *out, int len) {
+	FileError ec = FileError::OK;
 	// Get the FileDesc object.
 	auto desc = (FileDesc *) cookie;
 	// Forward the function call.
-	return desc->read(out, len);
+	int res = desc->read(ec, out, len);
+	if (res) errno = (int) ec;
+	return res;
 }
 
 // Wrapper for FileDesc::write.
 static int write_wrapper(struct _reent *reent, void *cookie, const char *in, int len) {
+	FileError ec = FileError::OK;
 	// Get the FileDesc object.
 	auto desc = (FileDesc *) cookie;
 	// Forward the function call.
-	return desc->write(in, len);
+	int res = desc->write(ec, in, len);
+	if (res) errno = (int) ec;
+	return res;
 }
 
 // Wrapper for FileDesc::seek.
 static _fpos_t seek_wrapper(struct _reent *reent, void *cookie, _fpos_t off, int whence) {
+	FileError ec = FileError::OK;
 	// Get the FileDesc object.
 	auto desc = (FileDesc *) cookie;
 	// Forward the function call.
-	return desc->seek(off, whence);
+	return desc->seek(ec, off, whence);
 }
 
 // Wrapper for FileDesc::close.
 static int close_wrapper(struct _reent *reent, void *cookie) {
+	FileError ec = FileError::OK;
 	// Get the FileDesc object.
 	auto desc = (FileDesc *) cookie;
 	// Call its close first.
-	int res = desc->close();
+	int res = desc->close(ec);
 	
 	// Erase it from the list.
 	for (auto iter = fileWrappers.begin(); iter != fileWrappers.end(); ++iter) {
@@ -61,6 +69,7 @@ static int close_wrapper(struct _reent *reent, void *cookie) {
 	}
 	
 	// Return the earlier result.
+	if (res) errno = (int) ec;
 	return res;
 }
 

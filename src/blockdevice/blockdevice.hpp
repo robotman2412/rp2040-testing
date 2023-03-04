@@ -18,7 +18,7 @@ class BlockDevice {
 		off_t _blocks;
 		
 		// Default constructor.
-		BlockDevice();
+		BlockDevice() {}
 		// Helper constructor.
 		BlockDevice(off_t bs, off_t bc): _blockSize(bs), _blocks(bc) {}
 		
@@ -31,16 +31,22 @@ class BlockDevice {
 		virtual FileError readBlock(off_t index, uint8_t *out, std::size_t length) = 0;
 		// Write a single block to this device.
 		// This function may fail if length != blockSize.
-		virtual FileError writeBlock(off_t index, uint8_t *in, std::size_t length) = 0;
+		virtual FileError writeBlock(off_t index, const uint8_t *in, std::size_t length) = 0;
+		// Force any cached writes to be written to the media immediately.
+		// You should call this occasionally to prevent data loss and also every time before shutdown.
+		virtual FileError sync() = 0;
 		
 		// Read a range of bytes from this block device.
-		FileError read(off_t offset, uint8_t *out, std::size_t length);
+		virtual FileError read(off_t offset, uint8_t *out, std::size_t length);
 		// Write a range of bytes to this block device.
-		FileError write(off_t offset, uint8_t *out, std::size_t length);
+		virtual FileError write(off_t offset, const uint8_t *in, std::size_t length);
 		
 		// Get the size of a block in this device.
 		// Must be a power of two.
 		off_t blockSize() const { return _blockSize; }
+		// Attempt to resize the block size.
+		// This operation may fail if unaligned or the block size is unobtainable.
+		virtual FileError setBlockSize(off_t newSize) = 0;
 		// Get the number of blocks in this device.
 		off_t blocks() const { return _blocks; }
 		// Get the number of bytes in this device.

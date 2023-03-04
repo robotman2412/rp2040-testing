@@ -29,6 +29,10 @@ enum FileError {
 	NAME_TOO_LONG = ENAMETOOLONG,
 	// Disk I/O error.
 	DISK_ERROR = EIO,
+	// Filesystem is read-only.
+	READ_ONLY = EROFS,
+	// Parameter error.
+	INVALID_PARAM = EINVAL,
 };
 
 struct OpenMode {
@@ -44,6 +48,15 @@ struct OpenMode {
 	// Parse from a string.
 	static OpenMode parse(std::string in);
 };
+
+namespace Open {
+static const OpenMode R {1,0,0,1};
+static const OpenMode RB{1,0,0,1};
+static const OpenMode W {1,1,0,1};
+static const OpenMode WB{1,1,0,1};
+static const OpenMode A {1,1,1,1};
+static const OpenMode AB{1,1,1,1};
+}
 
 
 class FileDesc {
@@ -80,16 +93,16 @@ class FileDesc {
 		
 		// Read bytes from this file.
 		// Returns read length.
-		virtual int read(char *out, int len) = 0;
+		virtual int read(FileError &ec, char *out, int len) = 0;
 		// Write bytes to this file.
 		// Returns written length.
-		virtual int write(const char *in, int len) = 0;
+		virtual int write(FileError &ec, const char *in, int len) = 0;
 		// Seeks in the file.
-		// Returns an error code.
-		virtual int seek(_fpos_t off, int whence) = 0;
+		// Returns 0 on success, -1 on error.
+		virtual int seek(FileError &ec, _fpos_t off, int whence) = 0;
 		// Closes the file.
-		// Returns an error code.
-		virtual int close() = 0;
+		// Returns 0 on success, -1 on error.
+		virtual int close(FileError &ec) = 0;
 };
 
 
@@ -198,6 +211,9 @@ class Filesystem {
 		// Try to remove a file.
 		// The given path should already be in absolute form.
 		virtual bool remove(FileError &ec, const Path &path) = 0;
+		// Force any cached writes to be written to the media immediately.
+		// You should call this occasionally to prevent data loss and also every time before shutdown.
+		virtual bool sync(FileError &ec) = 0;
 };
 
 

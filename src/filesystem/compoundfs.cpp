@@ -138,3 +138,13 @@ bool CompoundFS::remove(FileError &ec, const Path &path) {
 		return false;
 	}
 }
+
+// Force any cached writes to be written to the media immediately.
+// You should call this occasionally to prevent data loss and also every time before shutdown.
+bool CompoundFS::sync(FileError &ec) {
+	for (auto mount: mounts) {
+		bool res = mount.fs->sync(ec);
+		if (!res) return false;
+	}
+	return true;
+}

@@ -29,8 +29,9 @@
 
 MEMORY
 {
-    FLASH(rx)      : ORIGIN = 0x10000000, LENGTH = 2048k
+    /* FLASH(rx)      : ORIGIN = 0x10000000, LENGTH = 2048k */
     /* RAM(rwx)       : ORIGIN =  0x20000000, LENGTH = 256k */
+    FLASH(rx)      : ORIGIN = 0x10000000, LENGTH = 2032k
     RAM(rwx)       : ORIGIN = 0x20000000, LENGTH = 192k
     DYNLOAD(rwx)   : ORIGIN = 0x20030000, LENGTH = 64k
     SCRATCH_X(rwx) : ORIGIN = 0x20040000, LENGTH = 4k

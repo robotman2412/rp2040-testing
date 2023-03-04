@@ -35,10 +35,13 @@ add_executable(rp2040test
 	src/filesystem/fatfs.cpp
 	src/blockdevice/blockdevice.cpp
 	src/blockdevice/flash_bd.cpp
+	src/blockdevice/rom_bd.cpp
+	src/util.cpp
 	src/abi_impl.c
 	src/elfloader.c
 	src/main.cpp
 	build/elf_file.c
+	build/fatty_iso.c
 )
 
 pico_set_program_name(rp2040test "rp2040test")

@@ -10,22 +10,22 @@ class NullFile: public FileDesc {
 		
 		// Read bytes from this file.
 		// Returns read length.
-		int read(char *out, int len) { return 0; }
+		int read(FileError &ec, char *out, int len) { return 0; }
 		
 		// Write bytes to this file.
 		// Returns written length.
-		int write(const char *in, int len) {
+		int write(FileError &ec, const char *in, int len) {
 			fwrite(in, 1, len, stdout);
 			return len;
 		}
 		
 		// Seeks in the file.
-		// Returns an error code.
-		int seek(_fpos_t off, int whence) { return 0; }
+		// Returns 0 on success, -1 on error.
+		int seek(FileError &ec, _fpos_t off, int whence) { return 0; }
 		
 		// Closes the file.
-		// Returns an error code.
-		int close() { open = false; return 0; }
+		// Returns 0 on success, -1 on error.
+		int close(FileError &ec) { open = false; return 0; }
 };
 
 class DevFS: public Filesystem {
@@ -42,4 +42,7 @@ class DevFS: public Filesystem {
 		// Try to remove a file.
 		// The given path should already be in absolute form.
 		bool remove(FileError &ec, const Path &path);
+		// Force any cached writes to be written to the media immediately.
+		// You should call this occasionally to prevent data loss and also every time before shutdown.
+		bool sync(FileError &ec) { return true; }
 };
