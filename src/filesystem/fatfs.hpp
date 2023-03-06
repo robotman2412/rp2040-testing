@@ -410,7 +410,9 @@ class FatFS: public Filesystem {
 		// How big one cluster is.
 		off_t clusterSize;
 		
-		// Sector index of the root directory.
+		// FAT32: Cluster index of the root directory.
+		off_t rootBaseCluster;
+		// FAT12 and FAT16: Sector index of the root directory.
 		off_t rootSectorIndex;
 		// Sector index of the first FAT.
 		off_t fatSectorIndex;

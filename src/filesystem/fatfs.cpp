@@ -724,10 +724,17 @@ bool FatFS::dirSearch(FatDirEnt &out, FileError &ec, FileDesc &fd, const std::st
 // Obtain a FileDesc for the parent directory of `path`.
 std::unique_ptr<FileDesc> FatFS::dirOpen(FileError &ec, const Path &path, bool skipName) {
 	// Start at root.
-	auto root = std::make_unique<RootStream>(
-		Open::RB, *this, rootSectorIndex, rootDirSize * sizeof(RawDirEnt)
-	);
-	std::unique_ptr<Stream> dir;
+	std::unique_ptr<FileDesc> root;
+	if (type == Type::FAT32) {
+		root = std::make_unique<RootStream>(
+			Open::RB, *this, rootSectorIndex, rootDirSize * sizeof(RawDirEnt)
+		);
+	} else {
+		root = std::make_unique<Stream>(
+			Open::RB, *this, rootBaseCluster, 0x7fffffff
+		);
+	}
+	std::unique_ptr<FileDesc> dir;
 	FileDesc *fd = root.get();
 	
 	// Keep entries to handle the `..` parts.
