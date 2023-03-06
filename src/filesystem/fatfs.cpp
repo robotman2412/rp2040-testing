@@ -6,8 +6,12 @@
 
 #ifdef DEBUG
 #define debugf printf
+#include "util.h"
+#include "pico/stdlib.h"
 #else
 #define debugf(...) do{}while(0)
+#define hexdump(...) do{}while(0)
+#define sleep_ms(...) do{}while(0)
 #endif
 
 namespace Fat {
@@ -41,14 +45,14 @@ void packName(std::string in, char out[11]) {
 	if (trimmed && in.length() <= 6) {
 		in += "~1";
 	} else if (trimmed) {
-		in = in.substr(6);
+		in = in.substr(0, 6);
 		in += "~1";
 	}
 	
 	// Take up to eight before characters.
 	in = in.substr(period);
 	if (in.length() > 8) {
-		in = in.substr(6);
+		in = in.substr(0, 6);
 		in += "~1";
 	}
 	for (uint8_t i = 0; i < 8 && i < in.length(); i++) {
@@ -64,7 +68,7 @@ void packName(std::string in, char out[11]) {
 }
 
 // Convert an 8.3 format name in an 11-char array to a string.
-std::string unpackName(char in[11]) {
+std::string unpackName(const char in[11]) {
 	// Compute length for the '8' part of the name.
 	uint8_t len8 = 8;
 	while (len8 > 0 && in[len8-1] == ' ') len8 --;
@@ -94,6 +98,111 @@ std::string unpackName(char in[11]) {
 	return out;
 }
 
+
+// Case-insensitive string equality test.
+bool iequals(const std::string &a, const std::string &b) {
+	if (a.size() != b.size()) return false;
+	for (std::size_t i = 0; i < a.size(); i++) {
+		if (upper(a[i]) != upper(b[i])) return false;
+	}
+	return true;
+}
+
+
+
+// Extract the 13 characters into an array.
+void LongNameEnt::getName(uint16_t out[13]) const {
+	memcpy(out,    name1, 10);
+	memcpy(out+5,  name2, 12);
+	memcpy(out+11, name3,  4);
+}
+
+// Insert the 13 characters from an array.
+void LongNameEnt::setName(const uint16_t in[13]) {
+	memcpy(name1, in,    10);
+	memcpy(name2, in+5,  12);
+	memcpy(name3, in+11,  4);
+}
+
+
+
+// Set from a RawDitEnt.
+FatDirEnt::FatDirEnt(const RawDirEnt &raw, off_t sectorsPerCluster, Type fsType) {
+	// Placeholder values.
+	owner = group = 1000;
+	ownerAccess = groupAccess = globalAccess = AccessFlags{1,1,1};
+	
+	// FAT-specific values.
+	if (fsType == Type::FAT32) {
+		firstCluster = raw.fstClusLo | (raw.fstClusHi << 16);
+	} else {
+		firstCluster = raw.fstClusLo;
+	}
+	attr = raw.attr;
+	
+	// Translated values.
+	name = unpackName(raw.name);
+	isDirectory = attr & 0x10;
+	size = raw.fileSize;
+	diskSize = (size - 1) / sectorsPerCluster + 1;
+}
+
+// Set from a RawDirEnt with long name data.
+FatDirEnt::FatDirEnt(const RawDirEnt &raw, const std::vector<LongNameEnt> &longName,
+		off_t sectorsPerCluster, Type fsType) {
+	// Placeholder values.
+	owner = group = 1000;
+	ownerAccess = groupAccess = globalAccess = AccessFlags{1,1,1};
+	
+	// FAT-specific values.
+	if (fsType == Type::FAT32) {
+		firstCluster = raw.fstClusLo | (raw.fstClusHi << 16);
+	} else {
+		firstCluster = raw.fstClusLo;
+	}
+	attr = raw.attr;
+	
+	// Translated values.
+	isDirectory = attr & 0x10;
+	size = raw.fileSize;
+	diskSize = (size - 1) / sectorsPerCluster + 1;
+	
+	// The overcomplicated long name thing.
+	std::vector<uint16_t> tmp;
+	tmp.resize(longName.size() * 13);
+	
+	// Pass 1: Extract all the characters scattered throughout the `LongNameEnt`.
+	for (uint8_t i = 0; i < longName.size(); i++) {
+		// TODO: Enforce reverse order.
+		// if (longName[i].ord & 0x3f != longName.size() - i) {/* Bad */}
+		
+		// Store its data into our temporary array.
+		longName[longName.size()-i-1].getName(tmp.data() + i * 13);
+	}
+	
+	// Pass 2: Convert into a UTF8 string.
+	name.clear();
+	for (uint16_t wide: tmp) {
+		// The long name is null-terminated.
+		if (!wide) break;
+		
+		if (wide <= 0x007f) {
+			// 1 byte long encoding 0xxx xxxx.
+			name += (char) wide;
+			
+		} else if (wide <= 0x07ff) {
+			// 2 byte long encoding 110x xxxx  10xx xxxx.
+			name += (char) (0xc0 | (wide >> 6 & 0x1f));
+			name += (char) (0x80 | (wide      & 0x3f));
+			
+		} else {
+			// 3 byte long encoding 1110 xxxx  10xx xxxx  10xx xxxx.
+			name += (char) (0xe0 | (wide >> 12 & 0x0f));
+			name += (char) (0xc0 | (wide >> 6  & 0x3f));
+			name += (char) (0x80 | (wide       & 0x3f));
+		}
+	}
+}
 
 
 // Create a FAT.
@@ -269,6 +378,24 @@ void FAT::sync(FileError &ec) {
 
 
 
+// Seek to the next cluster.
+bool Stream::nextCluster(FileError &ec) {
+	// Look it up in the FAT.
+	uint32_t next = fs.fats[fs.activeFat].read(ec, cluster);
+	if (ec) return false;
+	
+	// If it is EOF then there is corruption.
+	if (next >= Clusters::END_OF_FILE) {
+		ec = FileError::DISK_ERROR;
+		return false;
+	}
+	
+	// Otherwise, update current cluster with it.
+	cluster = next;
+	return true;
+}
+
+
 // Constructs a stream.
 Stream::Stream(OpenMode mode, FatFS &fs, off_t cluster, off_t size):
 	FileDesc(mode),
@@ -284,34 +411,27 @@ int Stream::read(FileError &ec, char *out, int len) {
 	
 	int read = 0;
 	while (pos < size && read < len) {
-		// Test whether we need to load the next cluster.
-		if ((pos + 1) % fs.clusterSize == 0) {
-			printf("Next cluster.\n");
-			
-			// Look it up in the FAT.
-			uint32_t next = fs.fats[fs.activeFat].read(ec, cluster);
-			if (ec) return read;
-			
-			// If it is EOF then there is corruption.
-			if (next >= Clusters::END_OF_FILE) {
-				ec = FileError::DISK_ERROR; return read;
-			}
-			
-			// Otherwise, update current cluster with it.
-			cluster = next;
-		}
-		
-		// Read as much from this cluster as possible.
+		// Compute reading offset.
+		// Subtract 2 from cluster accounts for the offset added by the design.
 		off_t offset = fs.dataSectorIndex * bd.blockSize()
-					+ cluster * fs.clusterSize
+					+ (cluster - 2) * fs.clusterSize
 					+ pos % fs.clusterSize;
+		
+		// Compute reading length.
 		off_t leftInClus = fs.clusterSize - pos % fs.clusterSize;
 		if (leftInClus > len - read) leftInClus = len - read;
-		printf("Reading %u from offset %u\n", leftInClus, offset);
+		
+		// Read from the media.
 		ec = bd.read(offset, (uint8_t *) out, leftInClus);
+		if (ec) return read;
 		out  += leftInClus;
 		read += leftInClus;
-		if (ec) return read;
+		pos  += leftInClus;
+		
+		// Test whether we need to load the next cluster.
+		if (pos % fs.clusterSize == 0) {
+			if (!nextCluster(ec)) return read;
+		}
 	}
 	
 	return read;
@@ -320,15 +440,44 @@ int Stream::read(FileError &ec, char *out, int len) {
 // Write bytes to this file.
 // Returns written length.
 int Stream::write(FileError &ec, const char *in, int len) {
-	errno = (int) FileError::READ_ONLY;
+	ec = FileError::READ_ONLY;
 	return 0;
 }
 
 // Seeks in the file.
 // Returns an error code.
 int Stream::seek(FileError &ec, _fpos_t off, int whence) {
-	errno = (int) FileError::NOT_SUPPORTED;
-	return -1;
+	// Compute target position.
+	off_t target;
+	switch (whence) {
+		default: ec = FileError::INVALID_PARAM; return -1;
+		case SEEK_CUR: target = pos + off; break;
+		case SEEK_END: target = size + off; break;
+		case SEEK_SET: target = off; break;
+	}
+	
+	// Clamp target position to size.
+	if (target > size) target = size;
+	
+	// Amount of clusters passed in the file.
+	off_t targetClus  = target / fs.clusterSize;
+	off_t currentClus = pos / fs.clusterSize;
+	
+	// If target < current cluster, reset position.
+	if (targetClus < currentClus) {
+		currentClus = 0;
+		cluster = baseCluster;
+	}
+	
+	// If target > current cluster, seek forward.
+	while (targetClus > currentClus) {
+		if (!nextCluster(ec)) return -1;
+		currentClus ++;
+	}
+	
+	// Update byte position.
+	pos = target;
+	return pos;
 }
 
 // Closes the file.
@@ -336,6 +485,11 @@ int Stream::seek(FileError &ec, _fpos_t off, int whence) {
 int Stream::close(FileError &ec) {
 	// TODO: Sync.
 	return 0;
+}
+
+// Gets the absolute position in the file.
+long Stream::tell() {
+	return pos;
 }
 
 
@@ -394,7 +548,7 @@ int RootStream::seek(FileError &ec, _fpos_t off, int whence) {
 	// No need to check negative; pos is unsigned.
 	if (pos > size) pos = size;
 	
-	return 0;
+	return pos;
 }
 
 // Closes the file.
@@ -402,6 +556,11 @@ int RootStream::seek(FileError &ec, _fpos_t off, int whence) {
 int RootStream::close(FileError &ec) {
 	// TODO: Sync.
 	return 0;
+}
+
+// Gets the absolute position in the file.
+long RootStream::tell() {
+	return pos;
 }
 
 
@@ -418,7 +577,7 @@ void FatFS::interpretBPBCommon(std::vector<uint8_t> &cache, BPBCommon *common, B
 	
 	// Number of sectors occupied by the root directory.
 	rootDirSize    = unaligned_read(common->rootEntCnt);
-	rootDirSectors = (rootDirSize * sizeof(FatDirEnt) - 1)
+	rootDirSectors = (rootDirSize * sizeof(RawDirEnt) - 1)
 				/ unaligned_read(common->bytsPerSec) + 1;
 	debugf("Root dir sectors: %u\n", rootDirSectors);
 	
@@ -502,78 +661,132 @@ void FatFS::interpretBPB32(std::vector<uint8_t> &cache, BPBCommon *common, BPB32
 
 
 // Helper for getting a DirEnt from a file descriptor.
-// Sets the FatDirEnt to null when there are no more entries to read.
-std::pair<DirEnt, FatDirEnt> FatFS::dirNext(FileError &ec, FileDesc &fd) {
-	std::pair<DirEnt, FatDirEnt> out;
-	DirEnt    &decoded = out.first;
-	FatDirEnt &raw     = out.second;
+// Returns false when there are no more entries to read.
+bool FatFS::dirNext(FatDirEnt &out, FileError &ec, FileDesc &fd) {
+	union {
+		RawDirEnt raw;
+		LongNameEnt ln;
+	};
+	std::vector<LongNameEnt> longName;
 	
 	while (1) {
-		// Try to read one FatDirEnt.
+		// Try to read one RawDirEnt.
 		int read = fd.read(ec, (char *) &raw, sizeof(raw));
-		if (read != sizeof(raw)) ec = FileError::DISK_ERROR;
+		if (read != sizeof(raw)) {
+			ec = FileError::DISK_ERROR;
+		}
 		if (ec || raw.name[0] == 0) {
-			memset((void *) &raw, 0, sizeof(raw));
-			return out;
+			return false;
 		}
 		
 		// Test for empty, but not last, entries.
 		if (raw.name[0] == 0xE5) continue;
+		// Push long name entries onto the list.
+		if ((raw.attr & 0x0f) == 0x0f) {
+			longName.push_back(ln);
+			continue;
+		}
 		// Ignore volume labels.
 		if (raw.attr & 0x08) continue;
-		// Ignore long name entries for now.
-		if ((raw.attr & 0x0f) == 0x0f) continue;
+		// Ignore `.` and `..` entries.
+		if (raw.name[0] == '.') continue;
 		
 		// Otherwise, we have a valid raw entry to decode.
-		decoded.name         = raw.getName();
-		decoded.owner        = 0;
-		decoded.group        = 0;
-		decoded.ownerAccess  = AccessFlags{1, 1, 1};
-		decoded.groupAccess  = AccessFlags{1, 1, 1};
-		decoded.globalAccess = AccessFlags{1, 1, 1};
-		decoded.isDirectory  = raw.attr & 0x10;
-		decoded.size         = raw.fileSize;
-		decoded.diskSize     = ((raw.fileSize - 1) / clusterSize + 1) * clusterSize;
-		return out;
+		if (longName.size())
+			out = FatDirEnt(raw, longName, sectorsPerCluster, type);
+		else
+			out = FatDirEnt(raw, sectorsPerCluster, type);
+		return true;
 	}
 }
 
 // Search directory until `name` is found.
-// Sets the FatDirEnt to null when there is no match.
-std::pair<DirEnt, FatDirEnt> FatFS::dirSearch(FileError &ec, FileDesc &fd, std::string name) {
-	std::pair<DirEnt, FatDirEnt> out;
-	DirEnt    &decoded = out.first;
-	FatDirEnt &raw     = out.second;
-	
-	// Get the reduced name form.
-	char packedName[11];
-	packName(name, packedName);
+// Returns false when there is no match.
+bool FatFS::dirSearch(FatDirEnt &out, FileError &ec, FileDesc &fd, const std::string &name) {
+	FatDirEnt tmp;
 	
 	while (1) {
 		// Get an entry.
-		out = dirNext(ec, fd);
-		// If it is empty, pass along the empty.
-		if (raw.name[0] == 0) return out;
+		if (!dirNext(tmp, ec, fd)) {
+			ec = FileError::NOT_FOUND;
+			return false;
+		}
 		
 		// Compare the name.
-		if (!memcmp((const void *) packedName, (const void *) raw.name, 11)) {
+		if (iequals(tmp.name, name)) {
 			// If it matches, simply return the thing.
-			return out;
+			out = tmp;
+			return true;
 		}
 	}
 }
 
-// Create a file stream using a FatDirEnt.
-Stream FatFS::open(FatDirEnt &entry, OpenMode mode) {
-	off_t cluster;
-	// FAT12 and FAT16 shall ignore fstClusHi.
-	if (type == Type::FAT32) {
-		cluster = ((uint32_t) entry.fstClusHi << 16) | entry.fstClusLo;
-	} else {
-		cluster = entry.fstClusLo;
+// Obtain a FileDesc for the parent directory of `path`.
+std::unique_ptr<FileDesc> FatFS::dirOpen(FileError &ec, const Path &path, bool skipName) {
+	// Start at root.
+	auto root = std::make_unique<RootStream>(
+		Open::RB, *this, rootSectorIndex, rootDirSize * sizeof(RawDirEnt)
+	);
+	std::unique_ptr<Stream> dir;
+	FileDesc *fd = root.get();
+	
+	// Keep entries to handle the `..` parts.
+	std::vector<FatDirEnt> dirs;
+	
+	// Iterate directories.
+	const auto &parts = path.parts();
+	for (std::size_t i = 0; i < parts.size() - skipName; i ++) {
+		const auto &name = parts[i];
+		
+		// Ignore when it is a `.` part.
+		if (name == ".") continue;
+		
+		if (name == "..") {
+			// Pop one when it is a `..` part.
+			dirs.pop_back();
+			
+			if (dirs.size()) {
+				// Re-open the upper dir.
+				dir = std::make_unique<Stream>(open(dirs[dirs.size()-1], Open::RB));
+				fd  = dir.get();
+				
+			} else {
+				// Use the root dir.
+				fd  = root.get();
+			}
+			fd->seek(ec, 0, SEEK_SET);
+			
+		} else {
+			// Look up the directory in here.
+			FatDirEnt entry;
+			if (!dirSearch(entry, ec, *fd, name)) return nullptr;
+			if (!entry.isDirectory) { 
+				ec = FileError::NOT_A_DIR;
+				return nullptr;
+			}
+			dirs.push_back(entry);
+			
+			// Open the new directory.
+			dir = std::make_unique<Stream>(open(entry, Open::RB));
+			fd  = dir.get();
+		}
 	}
-	// Subtract 2 from cluster accounts for the offset added by the design.
-	return Stream(mode, *this, cluster - 2, entry.fileSize);
+	
+	if (fd == root.get()) {
+		return std::move(root);
+	} else {
+		return std::move(dir);
+	}
+}
+
+// Create a file stream using a RawDirEnt.
+Stream FatFS::open(FatDirEnt &entry, OpenMode mode) {
+	return Stream(mode, *this, entry.firstCluster, entry.isDirectory ? 0x7fffffff : entry.size);
+}
+
+// Create a file stream using a FatDirEnt.
+std::shared_ptr<FileDesc> FatFS::openShared(FatDirEnt &entry, OpenMode mode) {
+	return std::make_shared<Stream>(mode, *this, entry.firstCluster, entry.isDirectory ? 0x7fffffff : entry.size);
 }
 
 
@@ -647,46 +860,71 @@ FatFS::FatFS(std::unique_ptr<BlockDevice> _media, bool _writable):
 // List the files in a directory.
 // The given path should already be in absolute form.
 std::vector<DirEnt> FatFS::list(FileError &ec, const Path &path) {
-	// Start at root.
-	std::unique_ptr<FileDesc> fd = std::make_unique<RootStream>(RootStream(
-		Open::RB, *this, rootSectorIndex, rootDirSize * sizeof(FatDirEnt)
-	));
+	// Get a handle for reading the directory of `path`.
+	auto fd = dirOpen(ec, path, false);
 	
-	// TODO: Subdirectories.
+	// This vector shall be the output.
+	std::vector<DirEnt> out;
+	if (!fd) return out;
 	
 	// Finally, read all entries from the directory.
-	std::vector<DirEnt> out;
-	std::pair<DirEnt, FatDirEnt> pair;
+	FatDirEnt tmp;
 	while (1) {
-		pair = dirNext(ec, *fd);
-		if (ec) return out;
-		if (!pair.second.name[0]) return out;
-		out.push_back(pair.first);
+		if (!dirNext(tmp, ec, *fd)) return out;
+		out.push_back(tmp);
 	}
 }
 
 // Try to open a file in the filesystem.
 // The given path should already be in absolute form.
 std::shared_ptr<FileDesc> FatFS::open(FileError &ec, const Path &path, OpenMode mode) {
+	// Get the directory handle for the dir the file is in.
+	auto fd = dirOpen(ec, path, true);
+	if (!fd) return nullptr;
 	
+	// Look up the file entry.
+	const std::string &name = path.filename();
+	FatDirEnt entry;
+	if (!dirSearch(entry, ec, *fd, name)) {
+		ec = FileError::NOT_FOUND;
+		return nullptr;
+	}
+	
+	// Does not permit writing.
+	if (mode.write) {
+		ec = FileError::READ_ONLY;
+		return nullptr;
+	}
+	
+	// Must not be a directory.
+	if (entry.isDirectory) {
+		ec = FileError::NOT_A_FILE;
+		return nullptr;
+	}
+	
+	// If found, then return our stream implementation.
+	return openShared(entry, mode);
 }
 
 // Try to move a file from one path to another.
 // The given paths should already be in absolute form.
 bool FatFS::move(FileError &ec, const Path &source, const Path &dest) {
-	
+	ec = FileError::READ_ONLY;
+	return false;
 }
 
 // Try to remove a file.
 // The given path should already be in absolute form.
 bool FatFS::remove(FileError &ec, const Path &path) {
-	
+	ec = FileError::READ_ONLY;
+	return false;
 }
 
 // Force any cached writes to be written to the media immediately.
 // You should call this occasionally to prevent data loss and also every time before shutdown.
 bool FatFS::sync(FileError &ec) {
-	
+	ec = FileError::READ_ONLY;
+	return false;
 }
 
 

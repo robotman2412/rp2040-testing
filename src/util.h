@@ -10,10 +10,10 @@ extern "C" {
 
 #ifdef __cplusplus
 // Performs an xxd-style hexdump of some memory.
-void hexdump(const uint8_t *memory, size_t len, size_t cols=8);
+void hexdump(const void *memory, size_t len, size_t cols=8);
 #else
 // Performs an xxd-style hexdump of some memory.
-void hexdump(const uint8_t *memory, size_t len, size_t cols);
+void hexdump(const void *memory, size_t len, size_t cols);
 #endif
 
 #ifdef __cplusplus

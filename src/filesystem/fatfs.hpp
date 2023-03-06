@@ -170,11 +170,19 @@ static_assert(sizeof(BPBCommon) + sizeof(BPB16) == 512, "BPB must be 512 bytes t
 // Does not handle invalid names.
 void packName(std::string in, char out[11]);
 // Convert an 8.3 format name in an 11-char array to a string.
-std::string unpackName(char in[11]);
+std::string unpackName(const char in[11]);
+
+// Case-insensitive string equality test.
+bool iequals(const std::string &a, const std::string &b);
+// Convert character to uppercase.
+constexpr char upper(char in) {
+	if (in >= 'a' && in <= 'z') return in + 'A' - 'a';
+	else return in;
+}
 
 
 // Directory entry as stored on disk.
-struct FatDirEnt {
+struct __attribute__((packed)) RawDirEnt {
 	// Short filename (8.3 format).
 	char name[11];
 	// Attribute flags.
@@ -187,6 +195,8 @@ struct FatDirEnt {
 	uint16_t crtTime;
 	// Creation date.
 	uint16_t crtDate;
+	// Date of last accessing.
+	uint16_t lstAccDate;
 	// FAT32 only: High half of first cluster index.
 	uint16_t fstClusHi;
 	// Two seconds write time.
@@ -203,7 +213,56 @@ struct FatDirEnt {
 	// Convert name to string.
 	std::string getName() { return unpackName(name); }
 };
-static_assert(sizeof(FatDirEnt) == 32, "FatDirEnt must be 32 bytes in size.");
+static_assert(sizeof(RawDirEnt) == 32, "RawDirEnt must be 32 bytes in size.");
+
+// Directory entry interpreted as long name entry.
+struct __attribute__((packed)) LongNameEnt {
+	// Ordering of the long name packets.
+	// The last entry is bitwise OR-ed with 0x40.
+	uint8_t ord;
+	// First 5 characters of this long name entry.
+	uint16_t name1[5];
+	// Attribute flags, must be 0x0f.
+	uint8_t attr;
+	// Must be set to 0.
+	uint8_t _reserved;
+	// Checksum of the shortened name associated.
+	uint8_t chksum;
+	// Characters 6 through 11 of this long name entry.
+	uint16_t name2[6];
+	// Must be set to 0.
+	uint16_t fstClusLo;
+	// Characters 12 through 13 of this long name entry.
+	uint16_t name3[2];
+	
+	// Extract the 13 characters into an array.
+	void getName(uint16_t out[13]) const;
+	// Insert the 13 characters from an array.
+	void setName(const uint16_t in[13]);
+};
+static_assert(sizeof(LongNameEnt) == 32, "LongNameEnt must be 32 bytes in size.");
+
+// An "unpacked" RawDirEnt.
+// Inherited: Name, isDirectory, size, diskSize.
+// Replaced with placeholders: owner, group, *Access.
+// TODO: Translation of creation / update date.
+struct FatDirEnt: public DirEnt {
+	// First cluster index.
+	uint32_t firstCluster;
+	// Attribute flags.
+	uint8_t attr;
+	
+	// Sets owner, group, *Access to placeholder values.
+	FatDirEnt() {
+		owner = group = 1000;
+		ownerAccess = groupAccess = globalAccess = AccessFlags{1,1,1};
+	}
+	// Set from a RawDirEnt.
+	FatDirEnt(const RawDirEnt &raw, off_t sectorsPerCluster, Type fsType);
+	// Set from a RawDirEnt with long name data.
+	FatDirEnt(const RawDirEnt &raw, const std::vector<LongNameEnt> &longName,
+			off_t sectorsPerCluster, Type fsType);
+};
 
 
 // The FAT access helper class.
@@ -252,6 +311,9 @@ class Stream: public FileDesc {
 		off_t size;
 		// TODO: Write capability.
 		
+		// Seek to the next cluster.
+		bool nextCluster(FileError &ec);
+		
 	public:
 		// Constructs a stream.
 		Stream(OpenMode mode, FatFS &fs, off_t cluster, off_t size);
@@ -263,11 +325,13 @@ class Stream: public FileDesc {
 		// Returns written length.
 		int write(FileError &ec, const char *in, int len);
 		// Seeks in the file.
-		// Returns 0 on success, -1 on error.
+		// Returns new position on success, -1 on error.
 		int seek(FileError &ec, _fpos_t off, int whence);
 		// Closes the file.
 		// Returns 0 on success, -1 on error.
 		int close(FileError &ec);
+		// Gets the absolute position in the file.
+		long tell();
 };
 
 // The special stream for FAT12 and FAT16 root directory.
@@ -296,11 +360,13 @@ class RootStream: public FileDesc {
 		// Returns written length.
 		int write(FileError &ec, const char *in, int len);
 		// Seeks in the file.
-		// Returns 0 on success, -1 on error.
+		// Returns new position on success, -1 on error.
 		int seek(FileError &ec, _fpos_t off, int whence);
 		// Closes the file.
 		// Returns 0 on success, -1 on error.
 		int close(FileError &ec);
+		// Gets the absolute position in the file.
+		long tell();
 };
 
 // The FAT filesystem driver.
@@ -368,13 +434,18 @@ class FatFS: public Filesystem {
 		void interpretBPB32(std::vector<uint8_t> &cache, BPBCommon *common, BPB32 *bpb32);
 		
 		// Helper for getting a DirEnt from a file descriptor.
-		// Sets the FatDirEnt to null when there are no more entries to read.
-		std::pair<DirEnt, FatDirEnt> dirNext(FileError &ec, FileDesc &fd);
+		// Returns false when there are no more entries to read.
+		bool dirNext(FatDirEnt &out, FileError &ec, FileDesc &fd);
 		// Search directory until `name` is found.
-		// Sets the FatDirEnt to null when there is no match.
-		std::pair<DirEnt, FatDirEnt> dirSearch(FileError &ec, FileDesc &fd, std::string name);
+		// Returns false when there is no match.
+		bool dirSearch(FatDirEnt &out, FileError &ec, FileDesc &fd, const std::string &name);
+		// Obtain a FileDesc for the (parent) directory (of) `path`.
+		// Skips the last part of the path if `skipName` is true.
+		std::unique_ptr<FileDesc> dirOpen(FileError &ec, const Path &path, bool skipName);
 		// Create a file stream using a FatDirEnt.
 		Stream open(FatDirEnt &entry, OpenMode mode);
+		// Create a file stream using a FatDirEnt.
+		std::shared_ptr<FileDesc> openShared(FatDirEnt &entry, OpenMode mode);
 		
 	public:
 		// Does nothing by default.

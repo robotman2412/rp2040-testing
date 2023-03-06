@@ -78,7 +78,7 @@ static int close_wrapper(struct _reent *reent, void *cookie) {
 // Parse from a string.
 OpenMode OpenMode::parse(std::string in) {
 	bool plus = false;
-	OpenMode out;
+	OpenMode out{0,0,0,0};
 	for (char c: in) {
 		if (c == 'r') {
 			out.read = true;

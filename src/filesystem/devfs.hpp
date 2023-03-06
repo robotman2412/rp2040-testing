@@ -20,12 +20,15 @@ class NullFile: public FileDesc {
 		}
 		
 		// Seeks in the file.
-		// Returns 0 on success, -1 on error.
+		// Returns new position on success, -1 on error.
 		int seek(FileError &ec, _fpos_t off, int whence) { return 0; }
 		
 		// Closes the file.
 		// Returns 0 on success, -1 on error.
 		int close(FileError &ec) { open = false; return 0; }
+		
+		// Gets the absolute position in the file.
+		long tell() { return 0; }
 };
 
 class DevFS: public Filesystem {

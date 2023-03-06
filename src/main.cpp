@@ -113,19 +113,52 @@ void flash_test() {
 	hexdump(temp, 64);
 }
 
-void fat_test() {
+FILE *fat_test() {
 	// Make a read-only thing to mount from.
 	auto media = std::make_unique<RomBD>(fatty_iso, 512, fatty_iso_length);
 	// Make the FAT filesystem.
 	auto fat = std::make_shared<FatFS>(FatFS(std::move(media), false));
+	sleep_ms(50);
+	
+	// Listing test.
 	FileError ec{OK};
 	auto listing = fat->list(ec, "/");
-	for (auto entry: listing) {
-		if (entry.isDirectory)
-		printf("%-13s: directory\n", entry.name.c_str());
+	if (ec) printf("Error: %s\n", strerror((int) ec));
+	for (auto &ent: listing) {
+		if (ent.isDirectory)
+			printf("%-12s: directory\n", ent.name.c_str());
 		else
-		printf("%-13s: %u bytes\n", entry.name.c_str(), entry.size);
+			printf("%-12s: %u bytes\n", ent.name.c_str(), ent.size);
 	}
+	
+	// Set the filesystem impl to FAT.
+	setFS(fat);
+	// Return a handle through fopen.
+	FILE *fd = fopen("/lol/program.elf", "rb");
+	
+	// char tmp[32];
+	
+	// fread((void *) tmp, 1, 32, fd);
+	// hexdump(tmp, 32);
+	// printf("\n");
+	
+	// fseek(fd, 0x800, SEEK_SET);
+	// fread((void *) tmp, 1, 32, fd);
+	// hexdump(tmp, 32);
+	// printf("\n");
+	
+	// fseek(fd, 0x7f0, SEEK_SET);
+	// fread((void *) tmp, 1, 32, fd);
+	// hexdump(tmp, 32);
+	// printf("\n");
+	
+	// while(1);
+	
+	if (!fd) {
+		printf("Error: %s\n", strerror(errno));
+		while (1);
+	}
+	return fd;
 }
 
 pax_buf_t *disp_pax_buffer;
@@ -152,17 +185,7 @@ int main() {
 	printf("\n\n\n\n\n\n\n\n\n\n\n\nStartup time!\n\n");
 	sleep_ms(500);
 	
-	fat_test();
-	while (1);
-	
-	auto ptr = std::make_shared<CompoundFS>();
-	ptr->mount("/dev", std::make_shared<DevFS>());
-	setFS(ptr);
-	FILE *fd = fopen("/dev/null", "rb");
-	// auto ptr = std::make_shared<NullFile>();
-	// FILE *fd = createFD(ptr);
-	if (fd) fprintf(fd, "lolololol\n");
-	else printf("No fd :(\n");
+	FILE *elf_fd = fat_test();
 	
 	size_t fb_len = 320 * 240;
 	size_t fb_size = 2 * fb_len;
@@ -190,7 +213,7 @@ int main() {
 	ili9341_init(&disp);
 	
 	// Interpret ELF file.
-	FILE *elf_fd = fmemopen((void *) elf_file, elf_file_length, "r");
+	// FILE *elf_fd = fmemopen((void *) elf_file, elf_file_length, "r");
 	// FILE *elf_fd = input_test();
 	elf_ctx_t ctx = elf_interpret(elf_fd, false);
 	if (ctx.valid) {

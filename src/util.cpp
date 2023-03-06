@@ -10,7 +10,9 @@ static char hexdumpFilter(char in) {
 	}
 }
 
-extern "C" void hexdump(const uint8_t *memory, size_t len, size_t cols) {
+extern "C" void hexdump(const void *_memory, size_t len, size_t cols) {
+	auto memory = (const uint8_t *) _memory;
+	
 	// Determine amount of rows to print.
 	size_t rows  = len / cols;
 	size_t extra = len % cols;

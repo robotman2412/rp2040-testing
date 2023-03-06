@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <pico/stdlib.h>
 
+// #define ENABLE_DEBUG_LOGS
+
 // A magic tester for multi boits
 static bool _elf_expect(FILE *fd, size_t len, const void *magic) {
 	uint8_t tmp[len];

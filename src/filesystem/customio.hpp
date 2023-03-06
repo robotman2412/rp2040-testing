@@ -60,6 +60,10 @@ static const OpenMode AB{1,1,1,1};
 
 
 class FileDesc {
+	public:
+		// Associated FILE *.
+		FILE *_file_object;
+		
 	protected:
 		// Read allowed?
 		bool allowRead;
@@ -98,11 +102,13 @@ class FileDesc {
 		// Returns written length.
 		virtual int write(FileError &ec, const char *in, int len) = 0;
 		// Seeks in the file.
-		// Returns 0 on success, -1 on error.
+		// Returns new position on success, -1 on error.
 		virtual int seek(FileError &ec, _fpos_t off, int whence) = 0;
 		// Closes the file.
 		// Returns 0 on success, -1 on error.
 		virtual int close(FileError &ec) = 0;
+		// Gets the absolute position in the file.
+		virtual long tell() = 0;
 };
 
 
@@ -169,6 +175,16 @@ class Path {
 		bool relative() const { return _relative; }
 		// Set relative.
 		void relative(bool newValue);
+		
+		// Get the filename part of this path.
+		std::string filename() const {
+			if (!_parts.size()) return std::string();
+			else return _parts[_parts.size()-1];
+		}
+		// Get the directory name part of this path.
+		std::string dirname() const {
+			return substr(0, _parts.size()-1).string();
+		}
 		
 		// Test whether this path starts with another.
 		bool startsWith(const Path &other) const;
