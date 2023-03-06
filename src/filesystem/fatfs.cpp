@@ -653,7 +653,7 @@ void FatFS::interpretBPB32(std::vector<uint8_t> &cache, BPBCommon *common, BPB32
 	}
 	
 	// Get root directory index.
-	rootSectorIndex = unaligned_read(bpb32->rootClus) * sectorsPerCluster;
+	rootBaseCluster = unaligned_read(bpb32->rootClus);
 	
 	// Get first fat index.
 	fatSectorIndex  = unaligned_read(common->rsvdSecCnt);
@@ -726,12 +726,12 @@ std::unique_ptr<FileDesc> FatFS::dirOpen(FileError &ec, const Path &path, bool s
 	// Start at root.
 	std::unique_ptr<FileDesc> root;
 	if (type == Type::FAT32) {
-		root = std::make_unique<RootStream>(
-			Open::RB, *this, rootSectorIndex, rootDirSize * sizeof(RawDirEnt)
-		);
-	} else {
 		root = std::make_unique<Stream>(
 			Open::RB, *this, rootBaseCluster, 0x7fffffff
+		);
+	} else {
+		root = std::make_unique<RootStream>(
+			Open::RB, *this, rootSectorIndex, rootDirSize * sizeof(RawDirEnt)
 		);
 	}
 	std::unique_ptr<FileDesc> dir;

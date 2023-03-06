@@ -122,7 +122,7 @@ FILE *fat_test() {
 	
 	// Listing test.
 	FileError ec{OK};
-	auto listing = fat->list(ec, "/");
+	auto listing = fat->list(ec, "/./lol/asdfasdf/../asdfasdf/./c/.././././..");
 	if (ec) printf("Error: %s\n", strerror((int) ec));
 	for (auto &ent: listing) {
 		if (ent.isDirectory)
